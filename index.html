@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1e3a8a">
+<title>Vedant Sri Computer Institute</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f3f5f9; color: #222; }
+  header { background: #1e3a8a; color: #fff; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  header h1 { font-size: 17px; margin: 0; }
+  main { padding: 14px; max-width: 720px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h3 { margin: 0 0 10px; font-size: 16px; }
+  input, select { width: 100%; padding: 11px; margin: 5px 0; border: 1px solid #c7cbd6; border-radius: 8px; font-size: 15px; background: #fff; }
+  label.muted { display: block; margin-top: 8px; }
+  button { width: 100%; padding: 11px; margin: 5px 0; border: none; border-radius: 8px; background: #1e3a8a; color: #fff; font-size: 15px; font-weight: 600; }
+  button.secondary { background: #e5e7eb; color: #222; }
+  button.small { width: auto; padding: 7px 12px; margin: 0; font-size: 13px; }
+  .tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; }
+  .tabs button { width: auto; margin: 0; white-space: nowrap; background: #dbe2f0; color: #1e3a8a; }
+  .tabs button.active { background: #f59e0b; color: #222; }
+  .row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+  .muted { color: #666; font-size: 13px; }
+  .error { color: #b91c1c; font-size: 14px; min-height: 18px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Vedant Sri Computer Institute</h1>
+  <button id="logoutBtn" class="secondary small hidden">Logout</button>
+</header>
+
+<main>
+  <!-- LOGIN -->
+  <div id="loginView" class="card">
+    <div class="tabs">
+      <button id="tabAdmin" class="active">Admin Login</button>
+      <button id="tabStudent">Student Login</button>
+    </div>
+
+    <form id="loginAdminForm">
+      <input id="adminEmail" type="email" placeholder="Admin email" required>
+      <input id="adminPass" type="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+    </form>
+
+    <form id="loginStudentForm" class="hidden">
+      <input id="stRoll" placeholder="Roll No" autocapitalize="characters" required>
+      <label class="muted">Date of Birth</label>
+      <input id="stDob" type="date" required>
+      <button type="submit">Login</button>
+    </form>
+
+    <p id="loginError" class="error"></p>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="adminView" class="hidden">
+    <div class="tabs">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="batches">Batches</button>
+      <button data-tab="students">Students</button>
+    </div>
+    <div id="adminContent"></div>
+  </div>
+
+  <!-- STUDENT -->
+  <div id="studentView" class="hidden"></div>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, getDocs, setDoc, addDoc, collection, query, where, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ===================================================================
+// STEP 1: Firebase Console se copy ki hui config yahan paste karein
+// ===================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAb5p0EQGaHUPpveH5EYQ5My1AR8UKX-T8",
+  authDomain: "vedant-institute-30a7d.firebaseapp.com",
+  projectId: "vedant-institute-30a7d",
+  storageBucket: "vedant-institute-30a7d.firebasestorage.app",
+  messagingSenderId: "185126493548",
+  appId: "1:185126493548:web:dc13482707a672b269e749"
+};
+// ===================================================================
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Student accounts ek alag auth instance se bante hain, taki admin logout na ho
+const secondaryAuth = getAuth(initializeApp(firebaseConfig, "secondary"));
+
+const STUDENT_DOMAIN = "vedantstudent.app";
+
+// ---------- Helpers ----------
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const studentEmail = (roll) => `${roll.toLowerCase()}@${STUDENT_DOMAIN}`;
+// "2005-03-15" -> "15032005" (ye student ka password hai)
+const dobToPassword = (iso) => { const [y, m, d] = iso.split("-"); return d + m + y; };
+// "2005-03-15" -> "15-03-2005" (display ke liye)
+const fmtDate = (iso) => (iso ? iso.split("-").reverse().join("-") : "");
+
+function showView(id) {
+  ["loginView", "adminView", "studentView"].forEach((v) => $(v).classList.toggle("hidden", v !== id));
+  $("logoutBtn").classList.toggle("hidden", id === "loginView");
+}
+function setLoginError(msg) { $("loginError").textContent = msg; }
+function friendlyError(err) {
+  if (err.code && /invalid-credential|wrong-password|user-not-found|invalid-email/.test(err.code)) {
+    return "Login galat hai. Email ya Roll No / DOB check karein.";
+  }
+  return err.message;
+}
+const safe = (fn) => async (...args) => {
+  try { await fn(...args); } catch (err) { alert(friendlyError(err)); }
+};
+
+// ---------- Login ----------
+$("tabAdmin").onclick = () => switchLogin("admin");
+$("tabStudent").onclick = () => switchLogin("student");
+function switchLogin(which) {
+  $("loginAdminForm").classList.toggle("hidden", which !== "admin");
+  $("loginStudentForm").classList.toggle("hidden", which !== "student");
+  $("tabAdmin").classList.toggle("active", which === "admin");
+  $("tabStudent").classList.toggle("active", which === "student");
+  setLoginError("");
+}
+
+$("loginAdminForm").onsubmit = async (e) => {
+  e.preventDefault();
+  setLoginError("");
+  try {
+    await signInWithEmailAndPassword(auth, $("adminEmail").value.trim(), $("adminPass").value);
+  } catch (err) { setLoginError(friendlyError(err)); }
+};
+
+$("loginStudentForm").onsubmit = async (e) => {
+  e.preventDefault();
+  setLoginError("");
+  const roll = $("stRoll").value.trim().toUpperCase();
+  try {
+    await signInWithEmailAndPassword(auth, studentEmail(roll), dobToPassword($("stDob").value));
+  } catch (err) { setLoginError(friendlyError(err)); }
+};
+
+$("logoutBtn").onclick = () => signOut(auth);
+
+// ---------- Role check: admin hai ya student? ----------
+async function isAdmin(uid) {
+  return (await getDoc(doc(db, "admins", uid))).exists();
+}
+async function findStudentByUid(uid) {
+  const snap = await getDocs(query(collection(db, "students"), where("authUid", "==", uid)));
+  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { showView("loginView"); return; }
+  try {
+    if (await isAdmin(user.uid)) {
+      showView("adminView");
+      openAdminTab("dashboard");
+      return;
+    }
+    const student = await findStudentByUid(user.uid);
+    if (student) {
+      renderStudent(student);
+      showView("studentView");
+      return;
+    }
+    await signOut(auth);
+    setLoginError("Is account ko access nahi hai. Admin se sampark karein.");
+    showView("loginView");
+  } catch (err) {
+    setLoginError("Error: " + err.message);
+    showView("loginView");
+  }
+});
+
+// ---------- Data loaders ----------
+async function loadBatches() {
+  const snap = await getDocs(collection(db, "batches"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name));
+}
+async function loadStudents() {
+  const snap = await getDocs(collection(db, "students"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.rollNo.localeCompare(b.rollNo));
+}
+
+// ---------- Admin tabs ----------
+document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => openAdminTab(b.dataset.tab)));
+
+async function openAdminTab(tab) {
+  document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  const box = $("adminContent");
+  box.innerHTML = `<p class="muted">Loading...</p>`;
+  try {
+    if (tab === "dashboard") {
+      box.innerHTML = await renderDashboard();
+    } else if (tab === "batches") {
+      box.innerHTML = await renderBatches();
+      $("batchForm").onsubmit = safe(saveBatch);
+    } else if (tab === "students") {
+      box.innerHTML = await renderStudents();
+      if ($("addStudentForm")) {
+        $("addStudentForm").onsubmit = safe(saveStudent);
+        $("filterBatch").onchange = safe(refreshStudentList);
+        await refreshStudentList();
+      }
+    }
+  } catch (err) {
+    box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+
+// Dashboard
+async function renderDashboard() {
+  const [batches, students] = await Promise.all([loadBatches(), loadStudents()]);
+  const rows = batches.map((b) => {
+    const count = students.filter((s) => s.batchId === b.id).length;
+    return `<div class="row"><span>${esc(b.name)} <span class="muted">(${esc(b.course)})</span></span><b>${count}</b></div>`;
+  }).join("") || `<p class="muted">Abhi koi batch nahi hai.</p>`;
+  return `
+    <div class="card">
+      <div class="row"><span>Total batches</span><b>${batches.length}</b></div>
+      <div class="row"><span>Total students</span><b>${students.length}</b></div>
+    </div>
+    <div class="card"><h3>Batch-wise students</h3>${rows}</div>`;
+}
+
+// Batches
+async function renderBatches() {
+  const batches = await loadBatches();
+  const list = batches.map((b) =>
+    `<div class="row"><span><b>${esc(b.name)}</b><br><span class="muted">${esc(b.course)}</span></span></div>`
+  ).join("") || `<p class="muted">Koi batch nahi hai.</p>`;
+  return `
+    <div class="card">
+      <h3>Naya batch</h3>
+      <form id="batchForm">
+        <input id="bName" placeholder="Batch ka naam (jaise ADCA Morning-1)" required>
+        <input id="bCourse" placeholder="Course (jaise ADCA, Tally, DCA)" required>
+        <button type="submit">Batch save karein</button>
+      </form>
+    </div>
+    <div class="card"><h3>Batches (${batches.length})</h3>${list}</div>`;
+}
+
+async function saveBatch(e) {
+  e.preventDefault();
+  await addDoc(collection(db, "batches"), {
+    name: $("bName").value.trim(),
+    course: $("bCourse").value.trim(),
+    createdAt: serverTimestamp()
+  });
+  openAdminTab("batches");
+}
+
+// Students
+async function renderStudents() {
+  const batches = await loadBatches();
+  if (!batches.length) {
+    return `<div class="card"><p>Pehle "Batches" tab mein batch banayein.</p></div>`;
+  }
+  const options = batches.map((b) =>
+    `<option value="${esc(b.id)}">${esc(b.name)} - ${esc(b.course)}</option>`).join("");
+  return `
+    <div class="card">
+      <h3>Naya student</h3>
+      <form id="addStudentForm">
+        <input id="sRoll" placeholder="Roll No (jaise VSC001)" required>
+        <input id="sName" placeholder="Student ka naam" required>
+        <label class="muted">Date of Birth (ye login password banega)</label>
+        <input id="sDob" type="date" required>
+        <input id="sFather" placeholder="Father ka naam">
+        <input id="sMother" placeholder="Mother ka naam">
+        <input id="sAddress" placeholder="Address">
+        <input id="sPhone" placeholder="Phone number" inputmode="tel">
+        <select id="sBatch" required>${options}</select>
+        <button type="submit">Student save karein</button>
+      </form>
+    </div>
+    <div class="card">
+      <h3>Students</h3>
+      <select id="filterBatch"><option value="">Sab batches</option>${options}</select>
+      <div id="studentList"></div>
+    </div>`;
+}
+
+async function refreshStudentList() {
+  const filter = $("filterBatch").value;
+  const [batches, students] = await Promise.all([loadBatches(), loadStudents()]);
+  const names = Object.fromEntries(batches.map((b) => [b.id, b.name]));
+  const list = students
+    .filter((s) => !filter || s.batchId === filter)
+    .map((s) => `
+      <div class="row"><span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}<br>
+      <span class="muted">${esc(names[s.batchId] || "")} | ${esc(s.phone)}</span></span></div>`)
+    .join("");
+  $("studentList").innerHTML = list || `<p class="muted">Koi student nahi hai.</p>`;
+}
+
+async function saveStudent(e) {
+  e.preventDefault();
+  const rollNo = $("sRoll").value.trim().toUpperCase();
+  if (!/^[A-Z0-9]+$/.test(rollNo)) {
+    alert("Roll No mein sirf letters aur numbers hone chahiye.");
+    return;
+  }
+  const studentRef = doc(db, "students", rollNo);
+  if ((await getDoc(studentRef)).exists()) {
+    alert("Ye Roll No pehle se hai.");
+    return;
+  }
+
+  const dob = $("sDob").value;
+  const batchId = $("sBatch").value;
+  const batch = (await getDoc(doc(db, "batches", batchId))).data();
+
+  // Student ka login account: email = rollno@domain, password = DOB (DDMMYYYY)
+  const cred = await createUserWithEmailAndPassword(secondaryAuth, studentEmail(rollNo), dobToPassword(dob));
+  await signOut(secondaryAuth);
+
+  await setDoc(studentRef, {
+    rollNo,
+    name: $("sName").value.trim(),
+    dob,
+    father: $("sFather").value.trim(),
+    mother: $("sMother").value.trim(),
+    address: $("sAddress").value.trim(),
+    phone: $("sPhone").value.trim(),
+    batchId,
+    batchName: batch.name,
+    course: batch.course,
+    authUid: cred.user.uid,
+    createdAt: serverTimestamp()
+  });
+
+  alert(`Student save ho gaya. Login: Roll No ${rollNo} aur DOB.`);
+  openAdminTab("students");
+}
+
+// ---------- Student view ----------
+function renderStudent(s) {
+  const fields = [
+    ["Roll No", s.rollNo], ["Course", s.course], ["Batch", s.batchName],
+    ["Father", s.father], ["Mother", s.mother], ["DOB", fmtDate(s.dob)],
+    ["Phone", s.phone], ["Address", s.address]
+  ];
+  $("studentView").innerHTML = `
+    <div class="card">
+      <h3>${esc(s.name)}</h3>
+      ${fields.map(([k, v]) => `<div class="row"><span class="muted">${k}</span><b>${esc(v)}</b></div>`).join("")}
+    </div>
+    <div class="card muted">Weekly test, exam result, fees aur certificate ka section agle steps mein add hoga.</div>`;
+}
+</script>
+</body>
+</html>
