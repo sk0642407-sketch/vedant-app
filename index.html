@@ -2,83 +2,309 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#1e3a8a">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1d4a">
 <title>Vedant Sri Computer Institute</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+  :root { --navy:#0b1d4a; --blue:#1e3a8a; --blue2:#2563eb; --teal:#14b8a6; --amber:#f59e0b; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; }
   * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f3f5f9; color: #222; }
-  header { background: #1e3a8a; color: #fff; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, system-ui, -apple-system, "Noto Sans Devanagari", sans-serif;
+    color: var(--ink);
+    background: linear-gradient(160deg, #f8fbff 0%, #e9f0fb 50%, #f4f7fc 100%);
+    background-attachment: fixed;
+    overflow-x: hidden;
+  }
+  option { color: #111; }
+
+  /* ---------- Animated background ---------- */
+  .bg-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(30,58,138,.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,58,138,.07) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridMove 22s linear infinite;
+    -webkit-mask-image: linear-gradient(to bottom, #000 20%, transparent 90%);
+    mask-image: linear-gradient(to bottom, #000 20%, transparent 90%);
+  }
+  .blob { position: absolute; border-radius: 50%; filter: blur(70px); animation: drift 24s ease-in-out infinite; }
+  .b1 { width: 340px; height: 340px; background: #93c5fd; opacity: .35; top: -90px; left: -110px; }
+  .b2 { width: 300px; height: 300px; background: #fcd34d; opacity: .22; bottom: -80px; right: -90px; animation-duration: 30s; }
+  .float { position: absolute; bottom: -100px; opacity: .2; animation-name: rise; animation-timing-function: linear; animation-iteration-count: infinite; }
+  .float svg { width: 100%; height: auto; display: block; }
+
+  /* ---------- Header ---------- */
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: linear-gradient(90deg, var(--navy), var(--blue) 60%, #1d4ed8);
+    color: #fff;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    box-shadow: 0 6px 20px -8px rgba(11,29,74,.5);
+  }
   .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .brand h1 { font-size: 16px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brand h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: .2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hdrRight { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-  .langSel { width: auto; margin: 0; padding: 6px; font-size: 13px; border-radius: 6px; }
-  main { padding: 14px; max-width: 720px; margin: 0 auto; }
-  .card { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  .card h3 { margin: 0 0 10px; font-size: 16px; }
-  input, select { width: 100%; padding: 11px; margin: 5px 0; border: 1px solid #c7cbd6; border-radius: 8px; font-size: 15px; background: #fff; }
-  label.muted { display: block; margin-top: 8px; }
-  button { width: 100%; padding: 11px; margin: 5px 0; border: none; border-radius: 8px; background: #1e3a8a; color: #fff; font-size: 15px; font-weight: 600; }
-  button.secondary { background: #e5e7eb; color: #222; }
-  button.small { width: auto; padding: 7px 12px; margin: 0; font-size: 13px; }
-  .tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; }
-  .tabs button { width: auto; margin: 0; white-space: nowrap; background: #dbe2f0; color: #1e3a8a; }
-  .tabs button.active { background: #f59e0b; color: #222; }
-  .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+  .langSel { width: auto; margin: 0; padding: 6px 10px; font-size: 13px; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.35); }
+  #logoutBtn { background: rgba(255,255,255,.16); box-shadow: none; width: auto; margin: 0; padding: 7px 12px; font-size: 13px; }
+  .logoImg { height: 38px; width: auto; border-radius: 8px; background: #fff; padding: 2px; }
+  .logoFallback {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b); color: var(--navy);
+    font-weight: 800; font-size: 14px; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(255,255,255,.25);
+  }
+
+  /* ---------- Layout ---------- */
+  main { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 18px 14px 6px; }
+  .loginWrap { max-width: 440px; margin: 0 auto; }
+  .foot { position: relative; z-index: 1; text-align: center; color: var(--muted); font-size: 12px; padding: 14px 12px 24px; }
+
+  /* ---------- Hero (login) ---------- */
+  .hero { text-align: center; padding: 4px 0 6px; }
+  .deskScene { width: 100%; max-width: 330px; height: auto; display: block; margin: 0 auto; }
+  .heroTitle { font-size: 19px; color: var(--navy); margin: 2px 0 4px; font-weight: 700; }
+  .heroSub { font-size: 13px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+
+  /* ---------- Cards ---------- */
+  .card {
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(255,255,255,.8);
+    border-radius: 16px; padding: 18px; margin-bottom: 16px;
+    box-shadow: 0 14px 34px -16px rgba(11,29,74,.28);
+    animation: cardIn .45s ease both;
+  }
+  .card h3 { margin: 0 0 12px; font-size: 16px; color: var(--navy); display: flex; align-items: center; gap: 8px; }
+  .card h3::before { content: ""; width: 4px; height: 16px; border-radius: 2px; background: linear-gradient(var(--amber), var(--blue2)); flex-shrink: 0; }
+  #loginBrand { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 14px; }
+  #loginBrand .logoImg { height: 80px; }
+  #loginBrand .logoFallback { width: 80px; height: 80px; font-size: 26px; }
+  .loginName { font-weight: 700; color: var(--navy); font-size: 17px; text-align: center; }
+
+  /* ---------- Tabs ---------- */
+  .tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; }
+  .tabs button { width: auto; margin: 0; white-space: nowrap; background: #fff; color: var(--blue); border: 1px solid var(--line); box-shadow: none; }
+  .tabs button.active { background: linear-gradient(135deg, #fbbf24, var(--amber)); color: #1f2937; border-color: transparent; box-shadow: 0 6px 14px -8px rgba(245,158,11,.9); }
+
+  /* ---------- Forms & buttons ---------- */
+  input, select {
+    width: 100%; padding: 12px; margin: 5px 0;
+    border: 1.5px solid #d6dce8; border-radius: 10px;
+    font-size: 15px; background: #fff; color: var(--ink);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--blue2); box-shadow: 0 0 0 4px rgba(37,99,235,.14); }
+  label.muted { display: block; margin-top: 10px; font-size: 12.5px; font-weight: 600; color: #4b5563; }
+  button {
+    width: 100%; padding: 12px; margin: 6px 0; border: none; border-radius: 12px;
+    background: linear-gradient(135deg, var(--blue), var(--blue2)); color: #fff;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 8px 18px -8px rgba(37,99,235,.75);
+    transition: transform .15s ease, box-shadow .2s ease;
+  }
+  button:hover { box-shadow: 0 10px 22px -8px rgba(37,99,235,.85); }
+  button:active { transform: scale(.98); }
+  button.secondary { background: #eef2f7; color: var(--ink); box-shadow: none; }
+  button.small { width: auto; padding: 8px 12px; margin: 0; font-size: 13px; border-radius: 9px; box-shadow: none; }
+
+  /* ---------- Rows & misc ---------- */
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed #e5e7eb; font-size: 14px; }
   .btns { display: flex; gap: 6px; flex-shrink: 0; }
-  .muted { color: #666; font-size: 13px; }
+  .muted { color: var(--muted); font-size: 13px; }
   .error { color: #b91c1c; font-size: 14px; min-height: 18px; }
-  .okTxt { color: #166534; font-weight: 600; }
+  .okTxt { color: #15803d; font-weight: 600; }
   .badTxt { color: #b91c1c; font-weight: 600; }
-  .logoImg { height: 38px; width: auto; border-radius: 6px; background: #fff; padding: 2px; }
-  .logoFallback { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: #f59e0b; color: #1e3a8a; font-weight: 800; font-size: 14px; flex-shrink: 0; }
-  #loginBrand { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 12px; }
-  #loginBrand .logoImg { height: 90px; }
-  #loginBrand .logoFallback { width: 90px; height: 90px; font-size: 28px; }
-  .loginName { font-weight: 700; color: #1e3a8a; font-size: 18px; text-align: center; }
-  .prev { display: block; height: 70px; width: auto; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 4px; margin: 6px 0; }
-  .hidden { display: none !important; }
   .thumb { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e5e7eb; }
-  .thumbFallback { display: inline-flex; align-items: center; justify-content: center; background: #dbe2f0; color: #1e3a8a; font-weight: 700; }
-  .bigPhoto { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; display: block; margin-bottom: 10px; }
+  .thumbFallback { display: inline-flex; align-items: center; justify-content: center; background: #dbe2f0; color: var(--blue); font-weight: 700; }
+  .prev { display: block; height: 70px; width: auto; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 4px; margin: 6px 0; }
+  .bigPhoto { width: 90px; height: 90px; border-radius: 12px; object-fit: cover; display: block; margin-bottom: 10px; }
+  .hidden { display: none !important; }
+
+  /* ---------- SVG animations ---------- */
+  .code { transform-box: fill-box; transform-origin: left center; animation: typeIn 4s ease-in-out infinite; }
+  .cursor { animation: blink 1s steps(1) infinite; }
+  .led { animation: led 1.6s steps(2) infinite; }
+  .bar { transform-box: fill-box; transform-origin: center bottom; animation: grow 2.8s ease-in-out infinite; }
+  .floatY { animation: floatY 4.5s ease-in-out infinite; }
+  .floatY2 { animation: floatY 5.5s ease-in-out infinite reverse; }
+  .bob { animation: bob 3s ease-in-out infinite; }
+  .steam { fill: none; stroke: #94a3b8; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 4 8; animation: steam 2.8s linear infinite; }
+  .litkey { animation: keySlide 3.2s ease-in-out infinite; }
+  .glow { transform-box: fill-box; transform-origin: center; animation: glowPulse 5s ease-in-out infinite; }
+
+  @keyframes gridMove { to { background-position: 40px 40px; } }
+  @keyframes drift { 0%,100% { transform: translate(0,0); } 50% { transform: translate(22px,-16px); } }
+  @keyframes rise { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(-115vh) rotate(18deg); } }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes floatY { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  @keyframes typeIn { 0%,100% { transform: scaleX(.15); opacity: .5; } 45%,75% { transform: scaleX(1); opacity: 1; } }
+  @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+  @keyframes led { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+  @keyframes grow { 0%,100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+  @keyframes steam { from { stroke-dashoffset: 0; opacity: .9; } to { stroke-dashoffset: -28; opacity: 0; } }
+  @keyframes keySlide { 0% { transform: translateX(0); } 50% { transform: translateX(124px); } 100% { transform: translateX(0); } }
+  @keyframes glowPulse { 0%,100% { opacity: .75; } 50% { opacity: 1; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
+
+<!-- Reusable computer & accessory icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-monitor" viewBox="0 0 64 64"><rect x="6" y="8" width="52" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M24 42h16M32 42v8M20 52h24" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 64 64"><rect x="3" y="16" width="58" height="32" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M12 26h4M22 26h4M32 26h4M42 26h4M14 36h36" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-mouse" viewBox="0 0 64 64"><rect x="18" y="6" width="28" height="52" rx="14" fill="none" stroke="currentColor" stroke-width="3"/><path d="M32 6v18" stroke="currentColor" stroke-width="3"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 64 64"><rect x="12" y="12" width="40" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><rect x="22" y="22" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="3"/><path d="M4 22h8M4 32h8M4 42h8M52 22h8M52 32h8M52 42h8M22 4v8M32 4v8M42 4v8M22 52v8M32 52v8M42 52v8" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-usb" viewBox="0 0 64 64"><rect x="18" y="8" width="28" height="30" rx="5" fill="none" stroke="currentColor" stroke-width="3"/><rect x="26" y="38" width="12" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="3"/><path d="M26 18h12" stroke="currentColor" stroke-width="3"/></symbol>
+    <symbol id="i-headphones" viewBox="0 0 64 64"><path d="M10 40V32a22 22 0 0 1 44 0v8" fill="none" stroke="currentColor" stroke-width="3"/><rect x="6" y="38" width="12" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><rect x="46" y="38" width="12" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="3"/></symbol>
+  </defs>
+</svg>
+
+<!-- Animated background: grid, glow aur floating computer accessories -->
+<div class="bg-scene" aria-hidden="true">
+  <div class="bg-grid"></div>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="float" style="left:4%;width:58px;color:#2563eb;animation-duration:30s;animation-delay:-4s"><svg viewBox="0 0 64 64"><use href="#i-monitor"/></svg></div>
+  <div class="float" style="left:16%;width:44px;color:#14b8a6;animation-duration:24s;animation-delay:-12s"><svg viewBox="0 0 64 64"><use href="#i-keyboard"/></svg></div>
+  <div class="float" style="left:28%;width:30px;color:#f59e0b;animation-duration:20s;animation-delay:-7s"><svg viewBox="0 0 64 64"><use href="#i-mouse"/></svg></div>
+  <div class="float" style="left:40%;width:52px;color:#1e3a8a;animation-duration:34s;animation-delay:-18s"><svg viewBox="0 0 64 64"><use href="#i-cpu"/></svg></div>
+  <div class="float" style="left:53%;width:34px;color:#14b8a6;animation-duration:26s;animation-delay:-2s"><svg viewBox="0 0 64 64"><use href="#i-usb"/></svg></div>
+  <div class="float" style="left:64%;width:60px;color:#2563eb;animation-duration:32s;animation-delay:-22s"><svg viewBox="0 0 64 64"><use href="#i-headphones"/></svg></div>
+  <div class="float" style="left:76%;width:44px;color:#f59e0b;animation-duration:22s;animation-delay:-9s"><svg viewBox="0 0 64 64"><use href="#i-monitor"/></svg></div>
+  <div class="float" style="left:86%;width:36px;color:#1e3a8a;animation-duration:28s;animation-delay:-15s"><svg viewBox="0 0 64 64"><use href="#i-keyboard"/></svg></div>
+  <div class="float" style="left:94%;width:26px;color:#14b8a6;animation-duration:18s;animation-delay:-5s"><svg viewBox="0 0 64 64"><use href="#i-cpu"/></svg></div>
+  <div class="float" style="left:47%;width:40px;color:#f59e0b;animation-duration:36s;animation-delay:-26s"><svg viewBox="0 0 64 64"><use href="#i-mouse"/></svg></div>
+</div>
+
 <header>
   <div class="brand">
     <span id="brandLogo"></span>
     <h1 id="brandName">Vedant Sri Computer Institute</h1>
   </div>
   <div class="hdrRight">
-    <select id="langSel" class="langSel">
+    <select id="langSel" class="langSel" aria-label="Language">
       <option value="en">English</option>
       <option value="hi">हिंदी</option>
     </select>
-    <button id="logoutBtn" class="secondary small hidden" data-i18n="logout">Logout</button>
+    <button id="logoutBtn" class="small hidden" data-i18n="logout">Logout</button>
   </div>
 </header>
 
 <main>
   <!-- LOGIN -->
-  <div id="loginView" class="card">
-    <div id="loginBrand"></div>
-    <div class="tabs">
-      <button id="tabAdmin" class="active" data-i18n="adminLogin">Admin Login</button>
-      <button id="tabStudent" data-i18n="studentLogin">Student Login</button>
+  <div id="loginView" class="loginWrap">
+    <section class="hero">
+      <svg class="deskScene" viewBox="0 0 360 230" aria-hidden="true">
+        <defs>
+          <radialGradient id="glowG" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#60a5fa" stop-opacity=".5"/>
+            <stop offset="1" stop-color="#60a5fa" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="screenG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#1e3a8a"/>
+            <stop offset="1" stop-color="#0f172a"/>
+          </linearGradient>
+          <pattern id="keysP" width="10" height="5" patternUnits="userSpaceOnUse">
+            <rect width="8" height="3.6" rx="1" fill="#6b7280"/>
+          </pattern>
+        </defs>
+
+        <ellipse class="glow" cx="180" cy="118" rx="170" ry="108" fill="url(#glowG)"/>
+
+        <!-- floating certificate -->
+        <g class="floatY">
+          <rect x="14" y="30" width="62" height="46" rx="6" fill="#fff" stroke="#cbd5e1"/>
+          <rect x="23" y="40" width="30" height="4" rx="2" fill="#94a3b8"/>
+          <rect x="23" y="49" width="44" height="4" rx="2" fill="#cbd5e1"/>
+          <circle cx="58" cy="66" r="8" fill="#f59e0b"/>
+          <path d="M54 66l3 3 5-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+
+        <!-- floating marks chart -->
+        <g class="floatY2">
+          <rect x="276" y="24" width="72" height="58" rx="8" fill="#fff" stroke="#cbd5e1"/>
+          <rect class="bar" x="287" y="52" width="9" height="24" rx="2" fill="#2563eb"/>
+          <rect class="bar" style="animation-delay:.4s" x="301" y="42" width="9" height="34" rx="2" fill="#14b8a6"/>
+          <rect class="bar" style="animation-delay:.8s" x="315" y="58" width="9" height="18" rx="2" fill="#f59e0b"/>
+        </g>
+
+        <!-- monitor -->
+        <rect x="96" y="36" width="168" height="118" rx="10" fill="#1f2937"/>
+        <rect x="104" y="44" width="152" height="94" rx="5" fill="url(#screenG)"/>
+        <circle cx="112" cy="51" r="2.5" fill="#f87171"/>
+        <circle cx="120" cy="51" r="2.5" fill="#fbbf24"/>
+        <circle cx="128" cy="51" r="2.5" fill="#34d399"/>
+        <rect class="code" x="114" y="64" width="90" height="4" rx="2" fill="#60a5fa"/>
+        <rect class="code" style="animation-delay:.5s" x="114" y="74" width="120" height="4" rx="2" fill="#a78bfa"/>
+        <rect class="code" style="animation-delay:1s" x="122" y="84" width="72" height="4" rx="2" fill="#34d399"/>
+        <rect class="code" style="animation-delay:1.5s" x="122" y="94" width="104" height="4" rx="2" fill="#fbbf24"/>
+        <rect class="code" style="animation-delay:2s" x="114" y="104" width="56" height="4" rx="2" fill="#60a5fa"/>
+        <rect class="cursor" x="176" y="100" width="3" height="12" fill="#fff"/>
+        <rect x="170" y="154" width="20" height="24" fill="#374151"/>
+        <rect x="146" y="176" width="68" height="8" rx="4" fill="#374151"/>
+
+        <!-- CPU tower with LEDs -->
+        <rect x="290" y="134" width="34" height="74" rx="5" fill="#334155"/>
+        <rect x="298" y="146" width="18" height="4" rx="2" fill="#475569"/>
+        <circle class="led" cx="307" cy="166" r="3" fill="#34d399"/>
+        <circle class="led" style="animation-delay:.6s" cx="307" cy="176" r="3" fill="#f59e0b"/>
+        <circle class="led" style="animation-delay:1.1s" cx="307" cy="186" r="3" fill="#60a5fa"/>
+
+        <!-- keyboard with a key pressing -->
+        <rect x="88" y="192" width="160" height="16" rx="4" fill="#374151"/>
+        <rect x="92" y="195" width="152" height="10" rx="2" fill="url(#keysP)"/>
+        <rect class="litkey" x="94" y="195" width="9" height="3.6" rx="1" fill="#60a5fa"/>
+
+        <!-- mouse -->
+        <g class="bob">
+          <rect x="258" y="188" width="14" height="20" rx="7" fill="#e5e7eb" stroke="#9ca3af"/>
+          <line x1="265" y1="188" x2="265" y2="196" stroke="#9ca3af"/>
+        </g>
+
+        <!-- coffee mug with steam -->
+        <path class="steam" d="M44 170c-5-6 5-10 0-16"/>
+        <path class="steam" style="animation-delay:1.4s" d="M56 168c-5-6 5-10 0-16"/>
+        <rect x="34" y="180" width="26" height="28" rx="4" fill="#f59e0b"/>
+        <path d="M60 188h5a6 6 0 0 1 0 12h-5" fill="none" stroke="#f59e0b" stroke-width="3"/>
+
+        <!-- desk -->
+        <rect x="14" y="208" width="332" height="10" rx="5" fill="#cbd5e1"/>
+      </svg>
+      <h2 class="heroTitle" data-i18n="heroTitle">Smart management for computer education</h2>
+      <p class="heroSub" data-i18n="heroSub">Batches, students, weekly tests, fees and certificates, all in one place.</p>
+    </section>
+
+    <div class="card loginCard">
+      <div id="loginBrand"></div>
+      <div class="tabs">
+        <button id="tabAdmin" class="active" data-i18n="adminLogin">Admin Login</button>
+        <button id="tabStudent" data-i18n="studentLogin">Student Login</button>
+      </div>
+      <form id="loginAdminForm">
+        <input id="adminEmail" type="email" data-i18n-ph="adminEmail" placeholder="Admin email" required>
+        <input id="adminPass" type="password" data-i18n-ph="password" placeholder="Password" required>
+        <button type="submit" data-i18n="login">Login</button>
+      </form>
+      <form id="loginStudentForm" class="hidden">
+        <input id="stRoll" data-i18n-ph="rollNo" placeholder="Roll No" autocapitalize="characters" required>
+        <label class="muted" data-i18n="dob">Date of Birth</label>
+        <input id="stDob" type="date" required>
+        <button type="submit" data-i18n="login">Login</button>
+      </form>
+      <p id="loginError" class="error"></p>
     </div>
-    <form id="loginAdminForm">
-      <input id="adminEmail" type="email" data-i18n-ph="adminEmail" placeholder="Admin email" required>
-      <input id="adminPass" type="password" data-i18n-ph="password" placeholder="Password" required>
-      <button type="submit" data-i18n="login">Login</button>
-    </form>
-    <form id="loginStudentForm" class="hidden">
-      <input id="stRoll" data-i18n-ph="rollNo" placeholder="Roll No" autocapitalize="characters" required>
-      <label class="muted" data-i18n="dob">Date of Birth</label>
-      <input id="stDob" type="date" required>
-      <button type="submit" data-i18n="login">Login</button>
-    </form>
-    <p id="loginError" class="error"></p>
   </div>
 
   <!-- ADMIN -->
@@ -97,6 +323,8 @@
   <!-- STUDENT -->
   <div id="studentView" class="hidden"></div>
 </main>
+
+<footer class="foot">© <span id="footName">Vedant Sri Computer Institute</span> · <span id="footYear">2026</span></footer>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -185,7 +413,9 @@ const T = {
     directorName: "Director name", logoUpload: "Institute logo (upload)",
     signUpload: "Director signature image (upload)",
     imgNote: "If you do not upload a new image, the old one stays. Use a clear, small image.",
-    saveSettings: "Save settings", settingsSaved: "Settings saved.", photo: "Student photo"
+    saveSettings: "Save settings", settingsSaved: "Settings saved.", photo: "Student photo",
+    heroTitle: "Smart management for computer education",
+    heroSub: "Batches, students, weekly tests, fees and certificates, all in one place."
   },
   hi: {
     adminLogin: "एडमिन लॉगिन", studentLogin: "छात्र लॉगिन", login: "लॉगिन", logout: "लॉगआउट",
@@ -243,7 +473,9 @@ const T = {
     directorName: "डायरेक्टर का नाम", logoUpload: "संस्था का लोगो (अपलोड करें)",
     signUpload: "डायरेक्टर के सिग्नेचर की फोटो (अपलोड करें)",
     imgNote: "नई फोटो अपलोड न करें तो पुरानी रहेगी। साफ और छोटी फोटो चुनें।",
-    saveSettings: "सेटिंग्स सेव करें", settingsSaved: "सेटिंग्स सेव हो गईं।", photo: "छात्र की फोटो"
+    saveSettings: "सेटिंग्स सेव करें", settingsSaved: "सेटिंग्स सेव हो गईं।", photo: "छात्र की फोटो",
+    heroTitle: "कंप्यूटर शिक्षा के लिए स्मार्ट मैनेजमेंट",
+    heroSub: "बैच, छात्र, टेस्ट, फीस और प्रमाण पत्र, सब एक जगह।"
   }
 };
 let LANG = localStorage.getItem("vsc_lang") || "en";
@@ -306,6 +538,8 @@ function renderBrand() {
     : `<span class="logoFallback">VS</span>`;
   $("brandLogo").innerHTML = mark;
   $("brandName").textContent = settings.name || "Vedant Sri Computer Institute";
+  $("footName").textContent = settings.name || "Vedant Sri Computer Institute";
+  $("footYear").textContent = new Date().getFullYear();
   $("loginBrand").innerHTML = `${mark}<div class="loginName">${esc(settings.name)}</div>`;
 }
 
