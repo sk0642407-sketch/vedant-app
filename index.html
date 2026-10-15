@@ -1,15 +1,19 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1e3a8a">
 <title>Vedant Sri Computer Institute</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f3f5f9; color: #222; }
-  header { background: #1e3a8a; color: #fff; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  header h1 { font-size: 17px; margin: 0; }
+  header { background: #1e3a8a; color: #fff; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand h1 { font-size: 16px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdrRight { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .langSel { width: auto; margin: 0; padding: 6px; font-size: 13px; border-radius: 6px; }
   main { padding: 14px; max-width: 720px; margin: 0 auto; }
   .card { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .card h3 { margin: 0 0 10px; font-size: 16px; }
@@ -22,49 +26,67 @@
   .tabs button { width: auto; margin: 0; white-space: nowrap; background: #dbe2f0; color: #1e3a8a; }
   .tabs button.active { background: #f59e0b; color: #222; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
-  .btns { display: flex; gap: 6px; }
+  .btns { display: flex; gap: 6px; flex-shrink: 0; }
   .muted { color: #666; font-size: 13px; }
   .error { color: #b91c1c; font-size: 14px; min-height: 18px; }
+  .okTxt { color: #166534; font-weight: 600; }
+  .badTxt { color: #b91c1c; font-weight: 600; }
+  .logoImg { height: 38px; width: auto; border-radius: 6px; background: #fff; padding: 2px; }
+  .logoFallback { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: #f59e0b; color: #1e3a8a; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+  #loginBrand { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 12px; }
+  #loginBrand .logoImg { height: 90px; }
+  #loginBrand .logoFallback { width: 90px; height: 90px; font-size: 28px; }
+  .loginName { font-weight: 700; color: #1e3a8a; font-size: 18px; text-align: center; }
+  .prev { display: block; height: 70px; width: auto; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 4px; margin: 6px 0; }
   .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Vedant Sri Computer Institute</h1>
-  <button id="logoutBtn" class="secondary small hidden">Logout</button>
+  <div class="brand">
+    <span id="brandLogo"></span>
+    <h1 id="brandName">Vedant Sri Computer Institute</h1>
+  </div>
+  <div class="hdrRight">
+    <select id="langSel" class="langSel">
+      <option value="en">English</option>
+      <option value="hi">हिंदी</option>
+    </select>
+    <button id="logoutBtn" class="secondary small hidden" data-i18n="logout">Logout</button>
+  </div>
 </header>
 
 <main>
   <!-- LOGIN -->
   <div id="loginView" class="card">
+    <div id="loginBrand"></div>
     <div class="tabs">
-      <button id="tabAdmin" class="active">Admin Login</button>
-      <button id="tabStudent">Student Login</button>
+      <button id="tabAdmin" class="active" data-i18n="adminLogin">Admin Login</button>
+      <button id="tabStudent" data-i18n="studentLogin">Student Login</button>
     </div>
-
     <form id="loginAdminForm">
-      <input id="adminEmail" type="email" placeholder="Admin email" required>
-      <input id="adminPass" type="password" placeholder="Password" required>
-      <button type="submit">Login</button>
+      <input id="adminEmail" type="email" data-i18n-ph="adminEmail" placeholder="Admin email" required>
+      <input id="adminPass" type="password" data-i18n-ph="password" placeholder="Password" required>
+      <button type="submit" data-i18n="login">Login</button>
     </form>
-
     <form id="loginStudentForm" class="hidden">
-      <input id="stRoll" placeholder="Roll No" autocapitalize="characters" required>
-      <label class="muted">Date of Birth</label>
+      <input id="stRoll" data-i18n-ph="rollNo" placeholder="Roll No" autocapitalize="characters" required>
+      <label class="muted" data-i18n="dob">Date of Birth</label>
       <input id="stDob" type="date" required>
-      <button type="submit">Login</button>
+      <button type="submit" data-i18n="login">Login</button>
     </form>
-
     <p id="loginError" class="error"></p>
   </div>
 
   <!-- ADMIN -->
   <div id="adminView" class="hidden">
     <div class="tabs">
-      <button data-tab="dashboard" class="active">Dashboard</button>
-      <button data-tab="batches">Batches</button>
-      <button data-tab="students">Students</button>
-      <button data-tab="tests">Tests</button>
+      <button data-tab="dashboard" class="active" data-i18n="navDashboard">Dashboard</button>
+      <button data-tab="batches" data-i18n="navBatches">Batches</button>
+      <button data-tab="students" data-i18n="navStudents">Students</button>
+      <button data-tab="tests" data-i18n="navTests">Tests &amp; Exams</button>
+      <button data-tab="fees" data-i18n="navFees">Fees</button>
+      <button data-tab="settings" data-i18n="navSettings">Settings</button>
     </div>
     <div id="adminContent"></div>
   </div>
@@ -96,12 +118,144 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
 // Student accounts ek alag auth instance se bante hain, taki admin logout na ho
 const secondaryAuth = getAuth(initializeApp(firebaseConfig, "secondary"));
 
 const STUDENT_DOMAIN = "vedantstudent.app";
-const MAX_TEST_MARKS = 20;
+const MAX_WEEKLY = 20;
+
+// ---------- Translations (English default, Hindi optional) ----------
+const T = {
+  en: {
+    adminLogin: "Admin Login", studentLogin: "Student Login", login: "Login", logout: "Logout",
+    adminEmail: "Admin email", password: "Password", rollNo: "Roll No", dob: "Date of Birth",
+    dobPassword: "Date of Birth (this becomes the login password)",
+    loginWrong: "Login failed. Check the email, or Roll No and Date of Birth.",
+    noAccess: "This account does not have access. Please contact the admin.",
+    navDashboard: "Dashboard", navBatches: "Batches", navStudents: "Students",
+    navTests: "Tests & Exams", navFees: "Fees", navSettings: "Settings",
+    totalBatches: "Total batches", totalStudents: "Total students", totalTests: "Total tests & exams",
+    batchWise: "Batch-wise students", noBatch: "No batch yet. Create a batch first.",
+    newBatch: "New batch", batchName: "Batch name (e.g. ADCA Morning-1)",
+    batchCourse: "Course (e.g. ADCA, Tally, DCA)", saveBatch: "Save batch", batches: "Batches",
+    course: "Course", delete: "Delete", edit: "Edit", cancel: "Cancel", back: "Back",
+    date: "Date", amount: "Amount", note: "Note (optional)",
+    batchHasStudents: "This batch has students. Remove them or move them to another batch first.",
+    confirmDeleteBatch: "Delete this batch?",
+    newStudent: "New student", updateStudent: "Update student", saveStudent: "Save student",
+    name: "Student name", father: "Father's name", mother: "Mother's name", address: "Address",
+    phone: "Phone number", batch: "Batch", feePlan: "Fee plan",
+    oneTime: "One-time payment", monthly: "Monthly installments",
+    search: "Search by name or roll no", allBatches: "All batches", students: "Students",
+    noStudents: "No students yet.",
+    rollInvalid: "Roll No should contain only letters and numbers.",
+    rollExists: "This Roll No already exists.",
+    rollReused: "The old login for this Roll No is still in Firebase. Delete that email from Firebase Console > Authentication > Users, then try again.",
+    studentSaved: "Student saved. Login: Roll No and Date of Birth.",
+    studentUpdated: "Student updated.",
+    confirmDeleteStudent: "The student's record, marks and payments will be deleted. Are you sure?",
+    studentDeleted: "Student deleted. Login is now blocked.",
+    newTest: "New test / exam", testType: "Type", weekly: "Weekly test", annual: "Annual exam",
+    title: "Name (e.g. Test 1 - Oct 2026)", maxMarks: "Max marks", passMarks: "Pass marks",
+    saveTest: "Save test", allTests: "All tests & exams", noTests: "No tests yet.",
+    marksBtn: "Marks", saveMarks: "Save marks",
+    clearHint: "Leave a box blank to remove that student's marks.",
+    confirmDeleteTest: "This test and all its marks will be deleted. Are you sure?",
+    noStudentsInBatch: "No students in this batch.",
+    marksRange: "Marks must be whole numbers from 0 to", marksSaved: "Marks saved.",
+    pass: "Pass", fail: "Fail", notYet: "Not yet",
+    weeklyResults: "Weekly test results", annualResults: "Annual exam results",
+    noResults: "No results yet.", downloadCert: "Download certificate",
+    average: "Average (weekly tests)",
+    feeSetup: "Course fee setup", oneTimeFee: "One-time total fee",
+    monthlyFee: "Monthly installment amount", months: "Number of monthly installments",
+    saveFee: "Save fee", feeSaved: "Fee saved.", feeList: "Students and balance",
+    paid: "Paid", balance: "Balance", totalDue: "Total fee", feeNotSet: "Fee not set",
+    payments: "Payments", addPayment: "Add payment", mode: "Payment mode",
+    cash: "Cash", upi: "UPI", bank: "Bank transfer", savePayment: "Save payment",
+    paymentHistory: "Payment history", noPayments: "No payments yet.",
+    installments: "Installments paid", ofWord: "of",
+    confirmDeletePayment: "Delete this payment?",
+    feeStatus: "Fee status",
+    feeNotSetStudent: "Fee details are not set yet. Please contact the institute.",
+    settingsTitle: "Institute settings", instName: "Institute name", instContact: "Contact number",
+    directorName: "Director name", logoUpload: "Institute logo (upload)",
+    signUpload: "Director signature image (upload)",
+    imgNote: "If you do not upload a new image, the old one stays. Use a clear, small image.",
+    saveSettings: "Save settings", settingsSaved: "Settings saved."
+  },
+  hi: {
+    adminLogin: "एडमिन लॉगिन", studentLogin: "छात्र लॉगिन", login: "लॉगिन", logout: "लॉगआउट",
+    adminEmail: "एडमिन ईमेल", password: "पासवर्ड", rollNo: "रोल नंबर", dob: "जन्म तिथि",
+    dobPassword: "जन्म तिथि (यही लॉगिन पासवर्ड बनेगा)",
+    loginWrong: "लॉगिन विफल। ईमेल, या रोल नंबर और जन्म तिथि जांचें।",
+    noAccess: "इस अकाउंट को एक्सेस नहीं है। कृपया एडमिन से संपर्क करें।",
+    navDashboard: "डैशबोर्ड", navBatches: "बैच", navStudents: "छात्र",
+    navTests: "टेस्ट और परीक्षा", navFees: "फीस", navSettings: "सेटिंग्स",
+    totalBatches: "कुल बैच", totalStudents: "कुल छात्र", totalTests: "कुल टेस्ट और परीक्षा",
+    batchWise: "बैच-वार छात्र", noBatch: "अभी कोई बैच नहीं है। पहले बैच बनाएं।",
+    newBatch: "नया बैच", batchName: "बैच का नाम (जैसे ADCA Morning-1)",
+    batchCourse: "कोर्स (जैसे ADCA, Tally, DCA)", saveBatch: "बैच सेव करें", batches: "बैच",
+    course: "कोर्स", delete: "हटाएं", edit: "बदलें", cancel: "रद्द करें", back: "वापस",
+    date: "तारीख", amount: "राशि", note: "नोट (वैकल्पिक)",
+    batchHasStudents: "इस बैच में छात्र हैं। पहले उन्हें हटाएं या दूसरे बैच में ले जाएं।",
+    confirmDeleteBatch: "ये बैच हटाएं?",
+    newStudent: "नया छात्र", updateStudent: "छात्र अपडेट करें", saveStudent: "छात्र सेव करें",
+    name: "छात्र का नाम", father: "पिता का नाम", mother: "माता का नाम", address: "पता",
+    phone: "फ़ोन नंबर", batch: "बैच", feePlan: "फीस प्लान",
+    oneTime: "एक बार में भुगतान", monthly: "मासिक किस्तें",
+    search: "नाम या रोल नंबर से खोजें", allBatches: "सभी बैच", students: "छात्र",
+    noStudents: "अभी कोई छात्र नहीं है।",
+    rollInvalid: "रोल नंबर में सिर्फ अक्षर और अंक होने चाहिए।",
+    rollExists: "ये रोल नंबर पहले से मौजूद है।",
+    rollReused: "इस रोल नंबर का पुराना लॉगिन Firebase में बचा है। Firebase Console > Authentication > Users से वो email हटाकर फिर कोशिश करें।",
+    studentSaved: "छात्र सेव हो गया। लॉगिन: रोल नंबर और जन्म तिथि।",
+    studentUpdated: "छात्र की जानकारी अपडेट हो गई।",
+    confirmDeleteStudent: "छात्र का रिकॉर्ड, अंक और पेमेंट हट जाएंगे। पक्का?",
+    studentDeleted: "छात्र हटा दिया गया। अब उसका लॉगिन काम नहीं करेगा।",
+    newTest: "नया टेस्ट / परीक्षा", testType: "प्रकार", weekly: "साप्ताहिक टेस्ट", annual: "वार्षिक परीक्षा",
+    title: "नाम (जैसे Test 1 - Oct 2026)", maxMarks: "कुल अंक", passMarks: "पास अंक",
+    saveTest: "टेस्ट सेव करें", allTests: "सभी टेस्ट और परीक्षा", noTests: "अभी कोई टेस्ट नहीं है।",
+    marksBtn: "अंक", saveMarks: "अंक सेव करें",
+    clearHint: "खाली बॉक्स छोड़ने पर उस छात्र के अंक हट जाते हैं।",
+    confirmDeleteTest: "ये टेस्ट और इसके सारे अंक हट जाएंगे। पक्का?",
+    noStudentsInBatch: "इस बैच में कोई छात्र नहीं है।",
+    marksRange: "अंक 0 से लेकर इतने के बीच पूरे नंबर होने चाहिए:", marksSaved: "अंक सेव हो गए।",
+    pass: "पास", fail: "फेल", notYet: "अभी नहीं",
+    weeklyResults: "साप्ताहिक टेस्ट के परिणाम", annualResults: "वार्षिक परीक्षा के परिणाम",
+    noResults: "अभी कोई परिणाम नहीं है।", downloadCert: "प्रमाण पत्र डाउनलोड करें",
+    average: "औसत (साप्ताहिक टेस्ट)",
+    feeSetup: "कोर्स फीस सेटअप", oneTimeFee: "एक बार की कुल फीस",
+    monthlyFee: "मासिक किस्त की राशि", months: "मासिक किस्तों की संख्या",
+    saveFee: "फीस सेव करें", feeSaved: "फीस सेव हो गई।", feeList: "छात्र और बकाया",
+    paid: "जमा", balance: "बकाया", totalDue: "कुल फीस", feeNotSet: "फीस सेट नहीं है",
+    payments: "पेमेंट", addPayment: "पेमेंट जोड़ें", mode: "भुगतान का तरीका",
+    cash: "नकद", upi: "UPI", bank: "बैंक ट्रांसफर", savePayment: "पेमेंट सेव करें",
+    paymentHistory: "पेमेंट इतिहास", noPayments: "अभी कोई पेमेंट नहीं है।",
+    installments: "जमा हुई किस्तें", ofWord: "में से",
+    confirmDeletePayment: "ये पेमेंट हटाएं?",
+    feeStatus: "फीस की स्थिति",
+    feeNotSetStudent: "फीस की जानकारी अभी सेट नहीं है। कृपया संस्थान से संपर्क करें।",
+    settingsTitle: "संस्था की सेटिंग्स", instName: "संस्था का नाम", instContact: "संपर्क नंबर",
+    directorName: "डायरेक्टर का नाम", logoUpload: "संस्था का लोगो (अपलोड करें)",
+    signUpload: "डायरेक्टर के सिग्नेचर की फोटो (अपलोड करें)",
+    imgNote: "नई फोटो अपलोड न करें तो पुरानी रहेगी। साफ और छोटी फोटो चुनें।",
+    saveSettings: "सेटिंग्स सेव करें", settingsSaved: "सेटिंग्स सेव हो गईं।"
+  }
+};
+let LANG = localStorage.getItem("vsc_lang") || "en";
+const t = (k) => (T[LANG] && T[LANG][k]) || T.en[k] || k;
+
+// ---------- State ----------
+let settings = {
+  name: "Vedant Sri Computer Institute", address: "", contact: "", directorName: "",
+  logoData: "", logoRatio: 1, signatureData: "", signRatio: 2
+};
+let currentRole = null;
+let currentTab = "dashboard";
+let currentStudent = null;
+let feeCache = {};
+let studentCache = { tests: {}, marks: {} };
 
 // ---------- Helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -110,9 +264,18 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
 const studentEmail = (roll) => `${roll.toLowerCase()}@${STUDENT_DOMAIN}`;
 // "2005-03-15" -> "15032005" (student ka password)
 const dobToPassword = (iso) => { const [y, m, d] = iso.split("-"); return d + m + y; };
-// "2005-03-15" -> "15-03-2005" (display ke liye)
+// "2005-03-15" -> "15-03-2005"
 const fmtDate = (iso) => (iso ? iso.split("-").reverse().join("-") : "");
-
+const todayISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const money = (n) => "₹ " + Number(n || 0).toLocaleString("en-IN");
+const imgFmt = (d) => (d.startsWith("data:image/jpeg") ? "JPEG" : "PNG");
+const sumPaid = (list) => list.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+function feeTotal(student, cfee) {
+  if (!cfee) return 0;
+  return student.feePlan === "monthly"
+    ? (cfee.monthlyFee || 0) * (cfee.months || 0)
+    : (cfee.oneTimeFee || 0);
+}
 function showView(id) {
   ["loginView", "adminView", "studentView"].forEach((v) => $(v).classList.toggle("hidden", v !== id));
   $("logoutBtn").classList.toggle("hidden", id === "loginView");
@@ -120,7 +283,7 @@ function showView(id) {
 function setLoginError(msg) { $("loginError").textContent = msg; }
 function friendlyError(err) {
   if (err.code && /invalid-credential|wrong-password|user-not-found|invalid-email/.test(err.code)) {
-    return "Login galat hai. Email ya Roll No / DOB check karein.";
+    return t("loginWrong");
   }
   return err.message;
 }
@@ -128,9 +291,51 @@ const safe = (fn) => async (...args) => {
   try { await fn(...args); } catch (err) { alert(friendlyError(err)); }
 };
 
+function applyI18n() {
+  document.documentElement.lang = LANG === "hi" ? "hi" : "en";
+  document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t(el.dataset.i18n)));
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => (el.placeholder = t(el.dataset.i18nPh)));
+}
+
+function renderBrand() {
+  const mark = settings.logoData
+    ? `<img class="logoImg" src="${settings.logoData}" alt="Logo">`
+    : `<span class="logoFallback">VS</span>`;
+  $("brandLogo").innerHTML = mark;
+  $("brandName").textContent = settings.name || "Vedant Sri Computer Institute";
+  $("loginBrand").innerHTML = `${mark}<div class="loginName">${esc(settings.name)}</div>`;
+}
+
+async function loadSettings() {
+  try {
+    const snap = await getDoc(doc(db, "settings", "institute"));
+    if (snap.exists()) settings = { ...settings, ...snap.data() };
+  } catch (err) {
+    console.error(err);
+  }
+  renderBrand();
+}
+
+// Image ko chhota karke data URL banata hai (Firestore doc ka size chhota rahe)
+function resizeImage(file, maxW, mime) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      const ctx = c.getContext("2d");
+      if (mime === "image/jpeg") { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); }
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      resolve({ data: c.toDataURL(mime, 0.85), ratio: c.width / c.height });
+    };
+    img.onerror = () => reject(new Error("Image read nahi ho payi"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 // ---------- Login ----------
-$("tabAdmin").onclick = () => switchLogin("admin");
-$("tabStudent").onclick = () => switchLogin("student");
 function switchLogin(which) {
   $("loginAdminForm").classList.toggle("hidden", which !== "admin");
   $("loginStudentForm").classList.toggle("hidden", which !== "student");
@@ -138,6 +343,8 @@ function switchLogin(which) {
   $("tabStudent").classList.toggle("active", which === "student");
   setLoginError("");
 }
+$("tabAdmin").onclick = () => switchLogin("admin");
+$("tabStudent").onclick = () => switchLogin("student");
 
 $("loginAdminForm").onsubmit = async (e) => {
   e.preventDefault();
@@ -168,21 +375,23 @@ async function findStudentByUid(uid) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { showView("loginView"); return; }
+  if (!user) { currentRole = null; showView("loginView"); return; }
   try {
     if (await isAdmin(user.uid)) {
+      currentRole = "admin";
       showView("adminView");
       openAdminTab("dashboard");
       return;
     }
     const student = await findStudentByUid(user.uid);
     if (student) {
+      currentRole = "student";
       await renderStudent(student);
       showView("studentView");
       return;
     }
     await signOut(auth);
-    setLoginError("Is account ko access nahi hai. Admin se sampark karein.");
+    setLoginError(t("noAccess"));
     showView("loginView");
   } catch (err) {
     setLoginError("Error: " + err.message);
@@ -203,11 +412,18 @@ async function loadTests() {
   const snap = await getDocs(collection(db, "tests"));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 }
+async function loadCourseFees() {
+  const snap = await getDocs(collection(db, "courseFees"));
+  return Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]));
+}
+async function loadPayments() {
+  const snap = await getDocs(collection(db, "payments"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
 
 // ---------- Admin tabs ----------
-document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => openAdminTab(b.dataset.tab)));
-
 async function openAdminTab(tab) {
+  currentTab = tab;
   document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
   const box = $("adminContent");
   box.innerHTML = `<p class="muted">Loading...</p>`;
@@ -216,19 +432,19 @@ async function openAdminTab(tab) {
       box.innerHTML = await renderDashboard();
     } else if (tab === "batches") {
       box.innerHTML = await renderBatches();
-      $("batchForm").onsubmit = safe(saveBatch);
+      bindBatches();
     } else if (tab === "students") {
-      box.innerHTML = await renderStudents();
-      if ($("addStudentForm")) {
-        $("addStudentForm").onsubmit = safe(saveStudent);
-        $("filterBatch").onchange = safe(refreshStudentList);
-        await refreshStudentList();
-      }
+      box.innerHTML = await renderStudentsTab();
+      bindStudentsTab();
     } else if (tab === "tests") {
       box.innerHTML = await renderTests();
-      if ($("testForm")) $("testForm").onsubmit = safe(saveTest);
-      box.querySelectorAll("[data-marks]").forEach((b) => (b.onclick = safe(() => openMarks(b.dataset.marks))));
-      box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = safe(() => deleteTest(b.dataset.del))));
+      bindTests();
+    } else if (tab === "fees") {
+      box.innerHTML = await renderFeesTab();
+      bindFees();
+    } else if (tab === "settings") {
+      box.innerHTML = renderSettingsTab();
+      bindSettings();
     }
   } catch (err) {
     box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
@@ -237,35 +453,44 @@ async function openAdminTab(tab) {
 
 // Dashboard
 async function renderDashboard() {
-  const [batches, students] = await Promise.all([loadBatches(), loadStudents()]);
+  const [batches, students, tests] = await Promise.all([loadBatches(), loadStudents(), loadTests()]);
   const rows = batches.map((b) => {
     const count = students.filter((s) => s.batchId === b.id).length;
     return `<div class="row"><span>${esc(b.name)} <span class="muted">(${esc(b.course)})</span></span><b>${count}</b></div>`;
-  }).join("") || `<p class="muted">Abhi koi batch nahi hai.</p>`;
+  }).join("") || `<p class="muted">${t("noBatch")}</p>`;
   return `
     <div class="card">
-      <div class="row"><span>Total batches</span><b>${batches.length}</b></div>
-      <div class="row"><span>Total students</span><b>${students.length}</b></div>
+      <div class="row"><span>${t("totalBatches")}</span><b>${batches.length}</b></div>
+      <div class="row"><span>${t("totalStudents")}</span><b>${students.length}</b></div>
+      <div class="row"><span>${t("totalTests")}</span><b>${tests.length}</b></div>
     </div>
-    <div class="card"><h3>Batch-wise students</h3>${rows}</div>`;
+    <div class="card"><h3>${t("batchWise")}</h3>${rows}</div>`;
 }
 
-// Batches
+// ---------- Batches ----------
 async function renderBatches() {
   const batches = await loadBatches();
-  const list = batches.map((b) =>
-    `<div class="row"><span><b>${esc(b.name)}</b><br><span class="muted">${esc(b.course)}</span></span></div>`
-  ).join("") || `<p class="muted">Koi batch nahi hai.</p>`;
+  const list = batches.map((b) => `
+    <div class="row">
+      <span><b>${esc(b.name)}</b><br><span class="muted">${esc(b.course)}</span></span>
+      <span class="btns"><button class="small secondary" data-del-batch="${esc(b.id)}">${t("delete")}</button></span>
+    </div>`).join("") || `<p class="muted">${t("noBatch")}</p>`;
   return `
     <div class="card">
-      <h3>Naya batch</h3>
+      <h3>${t("newBatch")}</h3>
       <form id="batchForm">
-        <input id="bName" placeholder="Batch ka naam (jaise ADCA Morning-1)" required>
-        <input id="bCourse" placeholder="Course (jaise ADCA, Tally, DCA)" required>
-        <button type="submit">Batch save karein</button>
+        <input id="bName" placeholder="${t("batchName")}" required>
+        <input id="bCourse" placeholder="${t("batchCourse")}" required>
+        <button type="submit">${t("saveBatch")}</button>
       </form>
     </div>
-    <div class="card"><h3>Batches (${batches.length})</h3>${list}</div>`;
+    <div class="card"><h3>${t("batches")} (${batches.length})</h3>${list}</div>`;
+}
+
+function bindBatches() {
+  $("batchForm").onsubmit = safe(saveBatch);
+  document.querySelectorAll("#adminContent [data-del-batch]").forEach((b) =>
+    (b.onclick = safe(() => deleteBatch(b.dataset.delBatch))));
 }
 
 async function saveBatch(e) {
@@ -278,75 +503,113 @@ async function saveBatch(e) {
   openAdminTab("batches");
 }
 
-// Students
-async function renderStudents() {
-  const batches = await loadBatches();
-  if (!batches.length) {
-    return `<div class="card"><p>Pehle "Batches" tab mein batch banayein.</p></div>`;
-  }
-  const options = batches.map((b) =>
-    `<option value="${esc(b.id)}">${esc(b.name)} - ${esc(b.course)}</option>`).join("");
+async function deleteBatch(id) {
+  const students = await loadStudents();
+  if (students.some((s) => s.batchId === id)) return alert(t("batchHasStudents"));
+  if (!confirm(t("confirmDeleteBatch"))) return;
+  await deleteDoc(doc(db, "batches", id));
+  openAdminTab("batches");
+}
+
+// ---------- Students ----------
+function studentFormHTML(batches, s = null) {
+  const isEdit = !!s;
+  const opts = batches.map((b) =>
+    `<option value="${esc(b.id)}" ${s && s.batchId === b.id ? "selected" : ""}>${esc(b.name)} - ${esc(b.course)}</option>`
+  ).join("");
+  const monthly = s && s.feePlan === "monthly";
   return `
-    <div class="card">
-      <h3>Naya student</h3>
-      <form id="addStudentForm">
-        <input id="sRoll" placeholder="Roll No (jaise VSC001)" required>
-        <input id="sName" placeholder="Student ka naam" required>
-        <label class="muted">Date of Birth (ye login password banega)</label>
-        <input id="sDob" type="date" required>
-        <input id="sFather" placeholder="Father ka naam">
-        <input id="sMother" placeholder="Mother ka naam">
-        <input id="sAddress" placeholder="Address">
-        <input id="sPhone" placeholder="Phone number" inputmode="tel">
-        <select id="sBatch" required>${options}</select>
-        <button type="submit">Student save karein</button>
-      </form>
+    <form id="studentForm">
+      <label class="muted">${t("rollNo")}</label>
+      <input id="sRoll" placeholder="VSC001" value="${esc(s ? s.rollNo : "")}" ${isEdit ? "disabled" : "required"}>
+      <input id="sName" placeholder="${t("name")}" value="${esc(s ? s.name : "")}" required>
+      <label class="muted">${t("dobPassword")}</label>
+      <input id="sDob" type="date" value="${esc(s ? s.dob : "")}" ${isEdit ? "disabled" : "required"}>
+      <input id="sFather" placeholder="${t("father")}" value="${esc(s ? s.father : "")}">
+      <input id="sMother" placeholder="${t("mother")}" value="${esc(s ? s.mother : "")}">
+      <input id="sAddress" placeholder="${t("address")}" value="${esc(s ? s.address : "")}">
+      <input id="sPhone" placeholder="${t("phone")}" inputmode="tel" value="${esc(s ? s.phone : "")}">
+      <label class="muted">${t("batch")}</label>
+      <select id="sBatch" required>${opts}</select>
+      <label class="muted">${t("feePlan")}</label>
+      <select id="sPlan">
+        <option value="one_time" ${monthly ? "" : "selected"}>${t("oneTime")}</option>
+        <option value="monthly" ${monthly ? "selected" : ""}>${t("monthly")}</option>
+      </select>
+      <button type="submit">${isEdit ? t("updateStudent") : t("saveStudent")}</button>
+      ${isEdit ? `<button type="button" id="cancelEdit" class="secondary">${t("cancel")}</button>` : ""}
+    </form>`;
+}
+
+async function renderStudentsTab() {
+  const batches = await loadBatches();
+  if (!batches.length) return `<div class="card"><p>${t("noBatch")}</p></div>`;
+  const opts = batches.map((b) => `<option value="${esc(b.id)}">${esc(b.name)} - ${esc(b.course)}</option>`).join("");
+  return `
+    <div class="card" id="studentFormCard">
+      <h3>${t("newStudent")}</h3>
+      ${studentFormHTML(batches)}
     </div>
     <div class="card">
-      <h3>Students</h3>
-      <select id="filterBatch"><option value="">Sab batches</option>${options}</select>
+      <h3>${t("students")}</h3>
+      <input id="searchStudent" placeholder="${t("search")}">
+      <select id="filterBatch"><option value="">${t("allBatches")}</option>${opts}</select>
       <div id="studentList"></div>
     </div>`;
 }
 
-async function refreshStudentList() {
-  const filter = $("filterBatch").value;
-  const [batches, students] = await Promise.all([loadBatches(), loadStudents()]);
-  const names = Object.fromEntries(batches.map((b) => [b.id, b.name]));
-  const list = students
-    .filter((s) => !filter || s.batchId === filter)
-    .map((s) => `
-      <div class="row"><span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}<br>
-      <span class="muted">${esc(names[s.batchId] || "")} | ${esc(s.phone)}</span></span></div>`)
-    .join("");
-  $("studentList").innerHTML = list || `<p class="muted">Koi student nahi hai.</p>`;
+function bindStudentForm(editing) {
+  $("studentForm").onsubmit = safe((e) => saveStudent(e, editing));
+  const c = $("cancelEdit");
+  if (c) c.onclick = () => openAdminTab("students");
 }
 
-async function saveStudent(e) {
-  e.preventDefault();
-  const rollNo = $("sRoll").value.trim().toUpperCase();
-  if (!/^[A-Z0-9]+$/.test(rollNo)) {
-    alert("Roll No mein sirf letters aur numbers hone chahiye.");
-    return;
-  }
-  const studentRef = doc(db, "students", rollNo);
-  if ((await getDoc(studentRef)).exists()) {
-    alert("Ye Roll No pehle se hai.");
-    return;
-  }
+function bindStudentsTab() {
+  if (!$("studentForm")) return;
+  bindStudentForm(null);
+  $("searchStudent").oninput = safe(() => refreshStudentList());
+  $("filterBatch").onchange = safe(() => refreshStudentList());
+  safe(() => refreshStudentList())();
+}
 
-  const dob = $("sDob").value;
+async function refreshStudentList() {
+  const [batches, students] = await Promise.all([loadBatches(), loadStudents()]);
+  const names = Object.fromEntries(batches.map((b) => [b.id, b.name]));
+  const filterBatch = $("filterBatch").value;
+  const q = $("searchStudent").value.trim().toLowerCase();
+  const list = students
+    .filter((s) => !filterBatch || s.batchId === filterBatch)
+    .filter((s) => !q || s.name.toLowerCase().includes(q) || s.rollNo.toLowerCase().includes(q))
+    .map((s) => `
+      <div class="row">
+        <span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}<br>
+        <span class="muted">${esc(names[s.batchId] || "")} | ${t(s.feePlan === "monthly" ? "monthly" : "oneTime")}</span></span>
+        <span class="btns">
+          <button class="small secondary" data-edit="${esc(s.rollNo)}">${t("edit")}</button>
+          <button class="small secondary" data-del-student="${esc(s.rollNo)}">${t("delete")}</button>
+        </span>
+      </div>`).join("");
+  const box = $("studentList");
+  box.innerHTML = list || `<p class="muted">${t("noStudents")}</p>`;
+  box.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = safe(() => editStudent(b.dataset.edit))));
+  box.querySelectorAll("[data-del-student]").forEach((b) =>
+    (b.onclick = safe(() => deleteStudent(b.dataset.delStudent))));
+}
+
+async function editStudent(roll) {
+  const [batches, snap] = await Promise.all([loadBatches(), getDoc(doc(db, "students", roll))]);
+  const s = { id: roll, ...snap.data() };
+  $("studentFormCard").innerHTML = `<h3>${t("updateStudent")}</h3>${studentFormHTML(batches, s)}`;
+  bindStudentForm(s);
+  $("studentFormCard").scrollIntoView({ behavior: "smooth" });
+}
+
+async function saveStudent(e, editing) {
+  e.preventDefault();
   const batchId = $("sBatch").value;
   const batch = (await getDoc(doc(db, "batches", batchId))).data();
-
-  // Student ka login account: email = rollno@domain, password = DOB (DDMMYYYY)
-  const cred = await createUserWithEmailAndPassword(secondaryAuth, studentEmail(rollNo), dobToPassword(dob));
-  await signOut(secondaryAuth);
-
-  await setDoc(studentRef, {
-    rollNo,
+  const fields = {
     name: $("sName").value.trim(),
-    dob,
     father: $("sFather").value.trim(),
     mother: $("sMother").value.trim(),
     address: $("sAddress").value.trim(),
@@ -354,64 +617,129 @@ async function saveStudent(e) {
     batchId,
     batchName: batch.name,
     course: batch.course,
+    feePlan: $("sPlan").value
+  };
+
+  if (editing) {
+    await setDoc(doc(db, "students", editing.rollNo), fields, { merge: true });
+    alert(t("studentUpdated"));
+    openAdminTab("students");
+    return;
+  }
+
+  const rollNo = $("sRoll").value.trim().toUpperCase();
+  if (!/^[A-Z0-9]+$/.test(rollNo)) return alert(t("rollInvalid"));
+  const studentRef = doc(db, "students", rollNo);
+  if ((await getDoc(studentRef)).exists()) return alert(t("rollExists"));
+
+  let cred;
+  try {
+    cred = await createUserWithEmailAndPassword(secondaryAuth, studentEmail(rollNo), dobToPassword($("sDob").value));
+  } catch (err) {
+    if (err.code === "auth/email-already-in-use") return alert(t("rollReused"));
+    throw err;
+  }
+  await signOut(secondaryAuth);
+
+  await setDoc(studentRef, {
+    ...fields,
+    rollNo,
+    dob: $("sDob").value,
     authUid: cred.user.uid,
     createdAt: serverTimestamp()
   });
-
-  alert(`Student save ho gaya. Login: Roll No ${rollNo} aur DOB.`);
+  alert(t("studentSaved"));
   openAdminTab("students");
 }
 
-// Weekly tests
+async function deleteStudent(roll) {
+  if (!confirm(t("confirmDeleteStudent"))) return;
+  const [marks, pays] = await Promise.all([
+    getDocs(query(collection(db, "marks"), where("rollNo", "==", roll))),
+    getDocs(query(collection(db, "payments"), where("rollNo", "==", roll)))
+  ]);
+  await Promise.all([
+    ...marks.docs.map((d) => deleteDoc(d.ref)),
+    ...pays.docs.map((d) => deleteDoc(d.ref)),
+    deleteDoc(doc(db, "students", roll))
+  ]);
+  alert(t("studentDeleted"));
+  openAdminTab("students");
+}
+
+// ---------- Tests & Exams ----------
 async function renderTests() {
   const [batches, tests] = await Promise.all([loadBatches(), loadTests()]);
-  if (!batches.length) {
-    return `<div class="card"><p>Pehle "Batches" tab mein batch banayein.</p></div>`;
-  }
-  const options = batches.map((b) =>
-    `<option value="${esc(b.id)}">${esc(b.name)} - ${esc(b.course)}</option>`).join("");
-  const list = tests.map((t) => `
+  if (!batches.length) return `<div class="card"><p>${t("noBatch")}</p></div>`;
+  const opts = batches.map((b) => `<option value="${esc(b.id)}">${esc(b.name)} - ${esc(b.course)}</option>`).join("");
+  const list = tests.map((x) => `
     <div class="row">
-      <span><b>${esc(t.title)}</b><br>
-      <span class="muted">${esc(t.batchName)} | ${fmtDate(t.date)} | ${t.maxMarks} marks</span></span>
+      <span><b>${esc(x.title)}</b><br>
+      <span class="muted">${t(x.type === "annual" ? "annual" : "weekly")} | ${esc(x.batchName)} | ${fmtDate(x.date)} | ${t("maxMarks")}: ${x.maxMarks}</span></span>
       <span class="btns">
-        <button class="small" data-marks="${esc(t.id)}">Marks</button>
-        <button class="small secondary" data-del="${esc(t.id)}">Delete</button>
+        <button class="small" data-marks="${esc(x.id)}">${t("marksBtn")}</button>
+        <button class="small secondary" data-del-test="${esc(x.id)}">${t("delete")}</button>
       </span>
-    </div>`).join("") || `<p class="muted">Abhi koi test nahi hai.</p>`;
+    </div>`).join("") || `<p class="muted">${t("noTests")}</p>`;
   return `
     <div class="card">
-      <h3>Naya weekly test</h3>
+      <h3>${t("newTest")}</h3>
       <form id="testForm">
-        <select id="tBatch" required>${options}</select>
-        <input id="tTitle" placeholder="Test ka naam (jaise Test 1 - Oct 2026)" required>
-        <label class="muted">Test ki date</label>
+        <label class="muted">${t("batch")}</label>
+        <select id="tBatch" required>${opts}</select>
+        <label class="muted">${t("testType")}</label>
+        <select id="tType">
+          <option value="weekly">${t("weekly")}</option>
+          <option value="annual">${t("annual")}</option>
+        </select>
+        <input id="tTitle" placeholder="${t("title")}" required>
+        <label class="muted">${t("date")}</label>
         <input id="tDate" type="date" required>
-        <p class="muted">Max marks: ${MAX_TEST_MARKS}</p>
-        <button type="submit">Test save karein</button>
+        <label class="muted">${t("maxMarks")}</label>
+        <input id="tMax" type="number" min="1" value="${MAX_WEEKLY}" required>
+        <label class="muted">${t("passMarks")}</label>
+        <input id="tPass" type="number" min="0">
+        <button type="submit">${t("saveTest")}</button>
       </form>
     </div>
-    <div class="card"><h3>Tests (${tests.length})</h3>${list}</div>`;
+    <div class="card"><h3>${t("allTests")} (${tests.length})</h3>${list}</div>`;
+}
+
+function bindTests() {
+  if (!$("testForm")) return;
+  $("testForm").onsubmit = safe(saveTest);
+  $("tType").onchange = () => {
+    const annual = $("tType").value === "annual";
+    $("tMax").value = annual ? 100 : MAX_WEEKLY;
+    $("tPass").value = annual ? 40 : "";
+  };
+  document.querySelectorAll("#adminContent [data-marks]").forEach((b) =>
+    (b.onclick = safe(() => openMarks(b.dataset.marks))));
+  document.querySelectorAll("#adminContent [data-del-test]").forEach((b) =>
+    (b.onclick = safe(() => deleteTest(b.dataset.delTest))));
 }
 
 async function saveTest(e) {
   e.preventDefault();
   const batchId = $("tBatch").value;
   const batch = (await getDoc(doc(db, "batches", batchId))).data();
+  const passRaw = $("tPass").value.trim();
   await addDoc(collection(db, "tests"), {
     batchId,
     batchName: batch.name,
     course: batch.course,
+    type: $("tType").value,
     title: $("tTitle").value.trim(),
     date: $("tDate").value,
-    maxMarks: MAX_TEST_MARKS,
+    maxMarks: Number($("tMax").value),
+    passMarks: passRaw === "" ? null : Number(passRaw),
     createdAt: serverTimestamp()
   });
   openAdminTab("tests");
 }
 
 async function deleteTest(testId) {
-  if (!confirm("Ye test aur iske saare marks delete ho jaayenge. Pakka?")) return;
+  if (!confirm(t("confirmDeleteTest"))) return;
   const marksSnap = await getDocs(query(collection(db, "marks"), where("testId", "==", testId)));
   await Promise.all(marksSnap.docs.map((d) => deleteDoc(d.ref)));
   await deleteDoc(doc(db, "tests", testId));
@@ -420,6 +748,7 @@ async function deleteTest(testId) {
 
 // Marks entry: ek test ke liye batch ke sab students
 async function openMarks(testId) {
+  currentTab = "tests";
   const box = $("adminContent");
   box.innerHTML = `<p class="muted">Loading...</p>`;
   const test = (await getDoc(doc(db, "tests", testId))).data();
@@ -433,25 +762,24 @@ async function openMarks(testId) {
   const rows = batchStudents.map((s) => `
     <div class="row">
       <span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}</span>
-      <input class="mk" type="number" min="0" max="${MAX_TEST_MARKS}" step="1"
+      <input class="mk" type="number" min="0" max="${test.maxMarks}" step="1"
         data-roll="${esc(s.rollNo)}" data-uid="${esc(s.authUid)}"
         value="${existing[s.rollNo] ?? ""}" style="width:90px;margin:0">
     </div>`).join("");
 
+  const passInfo = test.passMarks != null ? ` | ${t("passMarks")}: ${test.passMarks}` : "";
   box.innerHTML = `
     <div class="card">
-      <button id="backTests" class="small secondary">Tests par wapas</button>
+      <button id="backTests" class="small secondary">${t("back")}</button>
       <h3 style="margin-top:12px">${esc(test.title)}</h3>
-      <p class="muted">${esc(test.batchName)} | ${fmtDate(test.date)} | Max marks: ${MAX_TEST_MARKS}</p>
-      ${rows || `<p class="muted">Is batch mein koi student nahi hai.</p>`}
-      ${batchStudents.length ? `<button id="saveMarks">Marks save karein</button>` : ""}
-      <p id="marksMsg" class="muted">Khali chhodne par us student ke marks hat jaate hain.</p>
+      <p class="muted">${esc(test.batchName)} | ${fmtDate(test.date)} | ${t("maxMarks")}: ${test.maxMarks}${passInfo}</p>
+      ${rows || `<p class="muted">${t("noStudentsInBatch")}</p>`}
+      ${batchStudents.length ? `<button id="saveMarks">${t("saveMarks")}</button>` : ""}
+      <p id="marksMsg" class="muted">${t("clearHint")}</p>
     </div>`;
 
   $("backTests").onclick = () => openAdminTab("tests");
-  if (batchStudents.length) {
-    $("saveMarks").onclick = safe(() => saveMarks(test, testId));
-  }
+  if (batchStudents.length) $("saveMarks").onclick = safe(() => saveMarks(test, testId));
 }
 
 async function saveMarks(test, testId) {
@@ -459,16 +787,15 @@ async function saveMarks(test, testId) {
   const jobs = [];
   for (const inp of inputs) {
     const roll = inp.dataset.roll;
-    const raw = inp.value.trim();
     const ref = doc(db, "marks", `${testId}_${roll}`);
+    const raw = inp.value.trim();
     if (raw === "") {
       jobs.push(deleteDoc(ref));
       continue;
     }
     const m = Number(raw);
-    if (!Number.isInteger(m) || m < 0 || m > MAX_TEST_MARKS) {
-      alert(`${roll}: marks 0 se ${MAX_TEST_MARKS} ke beech poore number hone chahiye.`);
-      return;
+    if (!Number.isInteger(m) || m < 0 || m > test.maxMarks) {
+      return alert(`${roll}: ${t("marksRange")} ${test.maxMarks}`);
     }
     jobs.push(setDoc(ref, {
       testId,
@@ -480,50 +807,402 @@ async function saveMarks(test, testId) {
     }));
   }
   await Promise.all(jobs);
-  $("marksMsg").textContent = `Marks save ho gaye (${inputs.length} students).`;
+  $("marksMsg").textContent = t("marksSaved");
 }
 
-// ---------- Student view ----------
-async function renderStudent(s) {
-  const [testsSnap, marksSnap] = await Promise.all([
-    getDocs(collection(db, "tests")),
-    getDocs(query(collection(db, "marks"), where("authUid", "==", s.authUid)))
+// ---------- Fees ----------
+async function renderFeesTab() {
+  const [batches, students, fees, payments] = await Promise.all([
+    loadBatches(), loadStudents(), loadCourseFees(), loadPayments()
   ]);
-  const marks = Object.fromEntries(marksSnap.docs.map((d) => [d.data().testId, d.data().marks]));
+  feeCache = fees;
+  const courses = [...new Set(batches.map((b) => b.course))];
+  if (!courses.length) return `<div class="card"><p>${t("noBatch")}</p></div>`;
+  const courseOpts = courses.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+
+  const rows = students.map((s) => {
+    const total = feeTotal(s, fees[s.course]);
+    const paid = sumPaid(payments.filter((p) => p.rollNo === s.rollNo));
+    return `
+      <div class="row">
+        <span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}<br>
+        <span class="muted">${esc(s.course)} | ${t(s.feePlan === "monthly" ? "monthly" : "oneTime")}</span></span>
+        <span style="text-align:right">
+          ${total
+            ? `<span class="muted">${t("paid")}: ${money(paid)}</span><br><b>${t("balance")}: ${money(total - paid)}</b>`
+            : `<span class="muted">${t("feeNotSet")}</span>`}
+          <br><button class="small" data-pay="${esc(s.rollNo)}">${t("payments")}</button>
+        </span>
+      </div>`;
+  }).join("") || `<p class="muted">${t("noStudents")}</p>`;
+
+  return `
+    <div class="card">
+      <h3>${t("feeSetup")}</h3>
+      <form id="feeForm">
+        <label class="muted">${t("course")}</label>
+        <select id="fCourse">${courseOpts}</select>
+        <label class="muted">${t("oneTimeFee")}</label>
+        <input id="fOne" type="number" min="0">
+        <label class="muted">${t("monthlyFee")}</label>
+        <input id="fMonthly" type="number" min="0">
+        <label class="muted">${t("months")}</label>
+        <input id="fMonths" type="number" min="0">
+        <button type="submit">${t("saveFee")}</button>
+      </form>
+    </div>
+    <div class="card"><h3>${t("feeList")}</h3>${rows}</div>`;
+}
+
+function fillFeeForm() {
+  const f = feeCache[$("fCourse").value] || {};
+  $("fOne").value = f.oneTimeFee ?? "";
+  $("fMonthly").value = f.monthlyFee ?? "";
+  $("fMonths").value = f.months ?? "";
+}
+
+function bindFees() {
+  if (!$("feeForm")) return;
+  $("feeForm").onsubmit = safe(saveFee);
+  $("fCourse").onchange = () => fillFeeForm();
+  fillFeeForm();
+  document.querySelectorAll("#adminContent [data-pay]").forEach((b) =>
+    (b.onclick = safe(() => openPayments(b.dataset.pay))));
+}
+
+async function saveFee(e) {
+  e.preventDefault();
+  const course = $("fCourse").value;
+  await setDoc(doc(db, "courseFees", course), {
+    oneTimeFee: Number($("fOne").value || 0),
+    monthlyFee: Number($("fMonthly").value || 0),
+    months: Number($("fMonths").value || 0)
+  });
+  alert(t("feeSaved"));
+  openAdminTab("fees");
+}
+
+async function openPayments(roll) {
+  currentTab = "fees";
+  const box = $("adminContent");
+  box.innerHTML = `<p class="muted">Loading...</p>`;
+  const [sSnap, fees, paySnap] = await Promise.all([
+    getDoc(doc(db, "students", roll)),
+    loadCourseFees(),
+    getDocs(query(collection(db, "payments"), where("rollNo", "==", roll)))
+  ]);
+  const s = sSnap.data();
+  const cfee = fees[s.course];
+  const total = feeTotal(s, cfee);
+  const pays = paySnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const paid = sumPaid(pays);
+  const instLine = s.feePlan === "monthly" && cfee && cfee.monthlyFee
+    ? `<div class="row"><span class="muted">${t("installments")}</span><b>${Math.floor(paid / cfee.monthlyFee)} ${t("ofWord")} ${cfee.months || 0}</b></div>`
+    : "";
+  const history = pays.map((p) => `
+    <div class="row">
+      <span>${fmtDate(p.date)} | ${money(p.amount)} | ${t(p.mode)}${p.note ? `<br><span class="muted">${esc(p.note)}</span>` : ""}</span>
+      <button class="small secondary" data-del-pay="${esc(p.id)}">${t("delete")}</button>
+    </div>`).join("") || `<p class="muted">${t("noPayments")}</p>`;
+
+  box.innerHTML = `
+    <div class="card">
+      <button id="backFees" class="small secondary">${t("back")}</button>
+      <h3 style="margin-top:12px">${esc(s.name)} (${esc(s.rollNo)})</h3>
+      <p class="muted">${esc(s.course)} | ${t(s.feePlan === "monthly" ? "monthly" : "oneTime")}</p>
+      ${total ? "" : `<p class="badTxt">${t("feeNotSet")}</p>`}
+      <div class="row"><span class="muted">${t("totalDue")}</span><b>${money(total)}</b></div>
+      <div class="row"><span class="muted">${t("paid")}</span><b>${money(paid)}</b></div>
+      <div class="row"><span class="muted">${t("balance")}</span><b>${money(total - paid)}</b></div>
+      ${instLine}
+    </div>
+    <div class="card">
+      <h3>${t("addPayment")}</h3>
+      <form id="payForm">
+        <input id="pAmount" type="number" min="1" placeholder="${t("amount")}" required>
+        <label class="muted">${t("date")}</label>
+        <input id="pDate" type="date" value="${todayISO()}" required>
+        <label class="muted">${t("mode")}</label>
+        <select id="pMode">
+          <option value="cash">${t("cash")}</option>
+          <option value="upi">${t("upi")}</option>
+          <option value="bank">${t("bank")}</option>
+        </select>
+        <input id="pNote" placeholder="${t("note")}">
+        <button type="submit">${t("savePayment")}</button>
+      </form>
+    </div>
+    <div class="card"><h3>${t("paymentHistory")}</h3>${history}</div>`;
+
+  $("backFees").onclick = () => openAdminTab("fees");
+  $("payForm").onsubmit = safe((e) => savePayment(e, s.rollNo, s.authUid));
+  document.querySelectorAll("#adminContent [data-del-pay]").forEach((b) =>
+    (b.onclick = safe(() => deletePayment(b.dataset.delPay, s.rollNo))));
+}
+
+async function savePayment(e, roll, authUid) {
+  e.preventDefault();
+  await addDoc(collection(db, "payments"), {
+    rollNo: roll,
+    authUid,
+    amount: Number($("pAmount").value),
+    date: $("pDate").value,
+    mode: $("pMode").value,
+    note: $("pNote").value.trim(),
+    createdAt: serverTimestamp()
+  });
+  openPayments(roll);
+}
+
+async function deletePayment(id, roll) {
+  if (!confirm(t("confirmDeletePayment"))) return;
+  await deleteDoc(doc(db, "payments", id));
+  openPayments(roll);
+}
+
+// ---------- Settings (logo, director, signature) ----------
+function renderSettingsTab() {
+  return `
+    <div class="card">
+      <h3>${t("settingsTitle")}</h3>
+      <form id="settingsForm">
+        <label class="muted">${t("instName")}</label>
+        <input id="setName" value="${esc(settings.name)}" required>
+        <label class="muted">${t("address")}</label>
+        <input id="setAddress" value="${esc(settings.address)}">
+        <label class="muted">${t("instContact")}</label>
+        <input id="setContact" value="${esc(settings.contact)}" inputmode="tel">
+        <label class="muted">${t("directorName")}</label>
+        <input id="setDirector" value="${esc(settings.directorName)}">
+        <label class="muted">${t("logoUpload")}</label>
+        <input id="setLogo" type="file" accept="image/*">
+        ${settings.logoData ? `<img class="prev" src="${settings.logoData}" alt="logo">` : ""}
+        <label class="muted">${t("signUpload")}</label>
+        <input id="setSign" type="file" accept="image/*">
+        ${settings.signatureData ? `<img class="prev" src="${settings.signatureData}" alt="signature">` : ""}
+        <p class="muted">${t("imgNote")}</p>
+        <button type="submit">${t("saveSettings")}</button>
+      </form>
+    </div>`;
+}
+
+function bindSettings() {
+  $("settingsForm").onsubmit = safe(saveSettings);
+}
+
+async function saveSettings(e) {
+  e.preventDefault();
+  const next = {
+    name: $("setName").value.trim(),
+    address: $("setAddress").value.trim(),
+    contact: $("setContact").value.trim(),
+    directorName: $("setDirector").value.trim(),
+    logoData: settings.logoData || "",
+    logoRatio: settings.logoRatio || 1,
+    signatureData: settings.signatureData || "",
+    signRatio: settings.signRatio || 2
+  };
+  const logo = $("setLogo").files[0];
+  const sign = $("setSign").files[0];
+  if (logo) {
+    const r = await resizeImage(logo, 300, "image/png");
+    next.logoData = r.data;
+    next.logoRatio = r.ratio;
+  }
+  if (sign) {
+    const r = await resizeImage(sign, 400, "image/jpeg");
+    next.signatureData = r.data;
+    next.signRatio = r.ratio;
+  }
+  await setDoc(doc(db, "settings", "institute"), next);
+  settings = { ...settings, ...next };
+  renderBrand();
+  alert(t("settingsSaved"));
+  openAdminTab("settings");
+}
+
+// ---------- Student portal ----------
+async function renderStudent(s) {
+  currentStudent = s;
+  const [testsSnap, marksSnap, paySnap, feeSnap] = await Promise.all([
+    getDocs(collection(db, "tests")),
+    getDocs(query(collection(db, "marks"), where("authUid", "==", s.authUid))),
+    getDocs(query(collection(db, "payments"), where("authUid", "==", s.authUid))),
+    getDoc(doc(db, "courseFees", s.course))
+  ]);
+
   const tests = testsSnap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((t) => t.batchId === s.batchId)
+    .filter((x) => x.batchId === s.batchId)
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const marks = Object.fromEntries(marksSnap.docs.map((d) => [d.data().testId, d.data().marks]));
+  studentCache = { tests: Object.fromEntries(tests.map((x) => [x.id, x])), marks };
 
-  const scored = tests.filter((t) => marks[t.id] !== undefined);
+  const weekly = tests.filter((x) => x.type !== "annual");
+  const annual = tests.filter((x) => x.type === "annual");
+  const scored = weekly.filter((x) => marks[x.id] !== undefined);
   const avg = scored.length
-    ? (scored.reduce((sum, t) => sum + marks[t.id], 0) / scored.length).toFixed(1)
+    ? (scored.reduce((sum, x) => sum + marks[x.id], 0) / scored.length).toFixed(1)
     : null;
 
-  const resultRows = tests.map((t) => `
-    <div class="row">
-      <span>${esc(t.title)}<br><span class="muted">${fmtDate(t.date)}</span></span>
-      <b>${marks[t.id] === undefined ? "Abhi nahi" : `${marks[t.id]} / ${t.maxMarks}`}</b>
-    </div>`).join("") || `<p class="muted">Abhi koi test nahi hua.</p>`;
+  const resultRow = (x) => {
+    const m = marks[x.id];
+    let status = `<span class="muted">${t("notYet")}</span>`;
+    let action = "";
+    if (m !== undefined) {
+      status = `<b>${m} / ${x.maxMarks}</b>`;
+      if (x.type === "annual" && x.passMarks != null) {
+        const passed = m >= x.passMarks;
+        status += ` <span class="${passed ? "okTxt" : "badTxt"}">${t(passed ? "pass" : "fail")}</span>`;
+        if (passed) {
+          action = `<div style="margin-top:6px"><button class="small" data-cert="${esc(x.id)}">${t("downloadCert")}</button></div>`;
+        }
+      }
+    }
+    return `<div class="row">
+      <span>${esc(x.title)}<br><span class="muted">${fmtDate(x.date)}</span></span>
+      <span style="text-align:right">${status}${action}</span>
+    </div>`;
+  };
 
-  const fields = [
-    ["Roll No", s.rollNo], ["Course", s.course], ["Batch", s.batchName],
-    ["Father", s.father], ["Mother", s.mother], ["DOB", fmtDate(s.dob)],
-    ["Phone", s.phone], ["Address", s.address]
-  ];
+  const cfee = feeSnap.exists() ? feeSnap.data() : null;
+  const total = feeTotal(s, cfee);
+  const pays = paySnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const paid = sumPaid(pays);
+  const feeHtml = total
+    ? `
+      <div class="row"><span class="muted">${t("feePlan")}</span><b>${t(s.feePlan === "monthly" ? "monthly" : "oneTime")}</b></div>
+      <div class="row"><span class="muted">${t("totalDue")}</span><b>${money(total)}</b></div>
+      <div class="row"><span class="muted">${t("paid")}</span><b>${money(paid)}</b></div>
+      <div class="row"><span class="muted">${t("balance")}</span><b>${money(total - paid)}</b></div>
+      ${s.feePlan === "monthly" && cfee && cfee.monthlyFee
+        ? `<div class="row"><span class="muted">${t("installments")}</span><b>${Math.floor(paid / cfee.monthlyFee)} ${t("ofWord")} ${cfee.months || 0}</b></div>`
+        : ""}
+      <h3 style="margin:14px 0 6px;font-size:14px">${t("paymentHistory")}</h3>
+      ${pays.map((p) => `<div class="row"><span>${fmtDate(p.date)} | ${t(p.mode)}</span><b>${money(p.amount)}</b></div>`).join("")
+        || `<p class="muted">${t("noPayments")}</p>`}`
+    : `<p class="muted">${t("feeNotSetStudent")}</p>`;
+
+  const details = [
+    [t("rollNo"), s.rollNo], [t("course"), s.course], [t("batch"), s.batchName],
+    [t("father"), s.father], [t("mother"), s.mother], [t("dob"), fmtDate(s.dob)],
+    [t("phone"), s.phone], [t("address"), s.address]
+  ].map(([k, v]) => `<div class="row"><span class="muted">${k}</span><b>${esc(v)}</b></div>`).join("");
 
   $("studentView").innerHTML = `
+    <div class="card"><h3>${esc(s.name)}</h3>${details}</div>
+    <div class="card"><h3>${t("feeStatus")}</h3>${feeHtml}</div>
     <div class="card">
-      <h3>${esc(s.name)}</h3>
-      ${fields.map(([k, v]) => `<div class="row"><span class="muted">${k}</span><b>${esc(v)}</b></div>`).join("")}
+      <h3>${t("weeklyResults")}</h3>
+      ${weekly.map(resultRow).join("") || `<p class="muted">${t("noResults")}</p>`}
+      ${avg !== null ? `<div class="row"><span class="muted">${t("average")}</span><b>${avg} / ${MAX_WEEKLY}</b></div>` : ""}
     </div>
     <div class="card">
-      <h3>Weekly test results</h3>
-      ${resultRows}
-      ${avg !== null ? `<div class="row"><span>Average</span><b>${avg} / ${MAX_TEST_MARKS}</b></div>` : ""}
-    </div>
-    <div class="card muted">Fees aur certificate ka section agle steps mein add hoga.</div>`;
+      <h3>${t("annualResults")}</h3>
+      ${annual.map(resultRow).join("") || `<p class="muted">${t("noResults")}</p>`}
+    </div>`;
+
+  document.querySelectorAll("#studentView [data-cert]").forEach((b) =>
+    (b.onclick = safe(() => downloadCertificate(b.dataset.cert))));
 }
+
+// Certificate PDF browser mein banta hai (English naam hona chahiye)
+function downloadCertificate(testId) {
+  const s = currentStudent;
+  const test = studentCache.tests[testId];
+  const m = studentCache.marks[testId];
+  if (!test || m === undefined) return alert(t("noResults"));
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const W = 297, H = 210, navy = [30, 58, 138];
+  const center = { align: "center" };
+
+  pdf.setDrawColor(...navy);
+  pdf.setLineWidth(1.5);
+  pdf.rect(8, 8, W - 16, H - 16);
+  pdf.setLineWidth(0.4);
+  pdf.rect(11, 11, W - 22, H - 22);
+
+  if (settings.logoData) {
+    const lw = Math.min(60, 24 * (settings.logoRatio || 1));
+    pdf.addImage(settings.logoData, imgFmt(settings.logoData), W / 2 - lw / 2, 14, lw, 24);
+  }
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(22);
+  pdf.setTextColor(...navy);
+  pdf.text(settings.name || "Vedant Sri Computer Institute", W / 2, 50, center);
+  if (settings.address) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(11);
+    pdf.setTextColor(60, 60, 60);
+    pdf.text(settings.address, W / 2, 57, center);
+  }
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(26);
+  pdf.setTextColor(...navy);
+  pdf.text("CERTIFICATE", W / 2, 76, center);
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(13);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text("This is to certify that", W / 2, 90, center);
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(22);
+  pdf.text(s.name, W / 2, 104, center);
+
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(12);
+  pdf.text(`Father's name: ${s.father || "-"}   |   Roll No: ${s.rollNo}   |   Course: ${s.course}`, W / 2, 115, center);
+  pdf.text(`has successfully passed the ${test.title} held on ${fmtDate(test.date)}`, W / 2, 127, center);
+  pdf.text(`with ${m} out of ${test.maxMarks} marks.`, W / 2, 135, center);
+
+  const certNo = `VSC-${(test.date || "").slice(0, 4)}-${s.rollNo}-${testId.slice(-4).toUpperCase()}`;
+  pdf.setFontSize(10);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text(`Certificate No: ${certNo}`, 22, H - 24);
+  pdf.text(`Exam date: ${fmtDate(test.date)}`, 22, H - 18);
+
+  if (settings.signatureData) {
+    const sw = Math.min(50, 18 * (settings.signRatio || 2));
+    pdf.addImage(settings.signatureData, imgFmt(settings.signatureData), W - 22 - sw, H - 50, sw, 18);
+  }
+  pdf.setDrawColor(0, 0, 0);
+  pdf.line(W - 80, H - 30, W - 22, H - 30);
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(11);
+  pdf.text(settings.directorName || "Director", W - 51, H - 24, center);
+  pdf.text("Director", W - 51, H - 18, center);
+
+  pdf.save(`Certificate_${s.rollNo}.pdf`);
+}
+
+// ---------- Init ----------
+document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => openAdminTab(b.dataset.tab)));
+
+function rerender() {
+  applyI18n();
+  renderBrand();
+  if (currentRole === "admin") openAdminTab(currentTab);
+  else if (currentRole === "student" && currentStudent) renderStudent(currentStudent).catch(console.error);
+}
+
+$("langSel").value = LANG;
+$("langSel").onchange = () => {
+  LANG = $("langSel").value;
+  localStorage.setItem("vsc_lang", LANG);
+  rerender();
+};
+
+applyI18n();
+loadSettings();
 </script>
 </body>
 </html>
