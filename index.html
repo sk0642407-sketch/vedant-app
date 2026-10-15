@@ -39,6 +39,9 @@
   .loginName { font-weight: 700; color: #1e3a8a; font-size: 18px; text-align: center; }
   .prev { display: block; height: 70px; width: auto; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 4px; margin: 6px 0; }
   .hidden { display: none !important; }
+  .thumb { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #e5e7eb; }
+  .thumbFallback { display: inline-flex; align-items: center; justify-content: center; background: #dbe2f0; color: #1e3a8a; font-weight: 700; }
+  .bigPhoto { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; display: block; margin-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -182,7 +185,7 @@ const T = {
     directorName: "Director name", logoUpload: "Institute logo (upload)",
     signUpload: "Director signature image (upload)",
     imgNote: "If you do not upload a new image, the old one stays. Use a clear, small image.",
-    saveSettings: "Save settings", settingsSaved: "Settings saved."
+    saveSettings: "Save settings", settingsSaved: "Settings saved.", photo: "Student photo"
   },
   hi: {
     adminLogin: "एडमिन लॉगिन", studentLogin: "छात्र लॉगिन", login: "लॉगिन", logout: "लॉगआउट",
@@ -240,7 +243,7 @@ const T = {
     directorName: "डायरेक्टर का नाम", logoUpload: "संस्था का लोगो (अपलोड करें)",
     signUpload: "डायरेक्टर के सिग्नेचर की फोटो (अपलोड करें)",
     imgNote: "नई फोटो अपलोड न करें तो पुरानी रहेगी। साफ और छोटी फोटो चुनें।",
-    saveSettings: "सेटिंग्स सेव करें", settingsSaved: "सेटिंग्स सेव हो गईं।"
+    saveSettings: "सेटिंग्स सेव करें", settingsSaved: "सेटिंग्स सेव हो गईं।", photo: "छात्र की फोटो"
   }
 };
 let LANG = localStorage.getItem("vsc_lang") || "en";
@@ -421,6 +424,14 @@ async function loadPayments() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+async function loadPhotos() {
+  const snap = await getDocs(collection(db, "photos"));
+  return Object.fromEntries(snap.docs.map((d) => [d.id, d.data().photo]));
+}
+const avatar = (src, name) => src
+  ? `<img class="thumb" src="${src}" alt="">`
+  : `<span class="thumb thumbFallback">${esc(((name || "?")[0] || "?").toUpperCase())}</span>`;
+
 // ---------- Admin tabs ----------
 async function openAdminTab(tab) {
   currentTab = tab;
@@ -536,6 +547,9 @@ function studentFormHTML(batches, s = null) {
         <option value="one_time" ${monthly ? "" : "selected"}>${t("oneTime")}</option>
         <option value="monthly" ${monthly ? "selected" : ""}>${t("monthly")}</option>
       </select>
+      <label class="muted">${t("photo")}</label>
+      <input id="sPhoto" type="file" accept="image/*">
+      ${s && s.photo ? `<img class="prev" src="${s.photo}" alt="">` : ""}
       <button type="submit">${isEdit ? t("updateStudent") : t("saveStudent")}</button>
       ${isEdit ? `<button type="button" id="cancelEdit" class="secondary">${t("cancel")}</button>` : ""}
     </form>`;
@@ -573,7 +587,7 @@ function bindStudentsTab() {
 }
 
 async function refreshStudentList() {
-  const [batches, students] = await Promise.all([loadBatches(), loadStudents()]);
+  const [batches, students, photos] = await Promise.all([loadBatches(), loadStudents(), loadPhotos()]);
   const names = Object.fromEntries(batches.map((b) => [b.id, b.name]));
   const filterBatch = $("filterBatch").value;
   const q = $("searchStudent").value.trim().toLowerCase();
@@ -582,8 +596,8 @@ async function refreshStudentList() {
     .filter((s) => !q || s.name.toLowerCase().includes(q) || s.rollNo.toLowerCase().includes(q))
     .map((s) => `
       <div class="row">
-        <span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}<br>
-        <span class="muted">${esc(names[s.batchId] || "")} | ${t(s.feePlan === "monthly" ? "monthly" : "oneTime")}</span></span>
+        <span style="display:flex;gap:10px;align-items:center">${avatar(photos[s.rollNo], s.name)}<span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}<br>
+        <span class="muted">${esc(names[s.batchId] || "")} | ${t(s.feePlan === "monthly" ? "monthly" : "oneTime")}</span></span></span>
         <span class="btns">
           <button class="small secondary" data-edit="${esc(s.rollNo)}">${t("edit")}</button>
           <button class="small secondary" data-del-student="${esc(s.rollNo)}">${t("delete")}</button>
@@ -597,8 +611,10 @@ async function refreshStudentList() {
 }
 
 async function editStudent(roll) {
-  const [batches, snap] = await Promise.all([loadBatches(), getDoc(doc(db, "students", roll))]);
-  const s = { id: roll, ...snap.data() };
+  const [batches, snap, photoSnap] = await Promise.all([
+    loadBatches(), getDoc(doc(db, "students", roll)), getDoc(doc(db, "photos", roll))
+  ]);
+  const s = { id: roll, ...snap.data(), photo: photoSnap.exists() ? photoSnap.data().photo : "" };
   $("studentFormCard").innerHTML = `<h3>${t("updateStudent")}</h3>${studentFormHTML(batches, s)}`;
   bindStudentForm(s);
   $("studentFormCard").scrollIntoView({ behavior: "smooth" });
@@ -622,6 +638,7 @@ async function saveStudent(e, editing) {
 
   if (editing) {
     await setDoc(doc(db, "students", editing.rollNo), fields, { merge: true });
+    await savePhoto(editing.rollNo, editing.authUid);
     alert(t("studentUpdated"));
     openAdminTab("students");
     return;
@@ -648,8 +665,16 @@ async function saveStudent(e, editing) {
     authUid: cred.user.uid,
     createdAt: serverTimestamp()
   });
+  await savePhoto(rollNo, cred.user.uid);
   alert(t("studentSaved"));
   openAdminTab("students");
+}
+
+async function savePhoto(roll, authUid) {
+  const file = $("sPhoto").files[0];
+  if (!file) return;
+  const r = await resizeImage(file, 160, "image/jpeg");
+  await setDoc(doc(db, "photos", roll), { photo: r.data, authUid });
 }
 
 async function deleteStudent(roll) {
@@ -661,7 +686,8 @@ async function deleteStudent(roll) {
   await Promise.all([
     ...marks.docs.map((d) => deleteDoc(d.ref)),
     ...pays.docs.map((d) => deleteDoc(d.ref)),
-    deleteDoc(doc(db, "students", roll))
+    deleteDoc(doc(db, "students", roll)),
+    deleteDoc(doc(db, "photos", roll))
   ]);
   alert(t("studentDeleted"));
   openAdminTab("students");
@@ -1026,11 +1052,12 @@ async function saveSettings(e) {
 // ---------- Student portal ----------
 async function renderStudent(s) {
   currentStudent = s;
-  const [testsSnap, marksSnap, paySnap, feeSnap] = await Promise.all([
+  const [testsSnap, marksSnap, paySnap, feeSnap, photoSnap] = await Promise.all([
     getDocs(collection(db, "tests")),
     getDocs(query(collection(db, "marks"), where("authUid", "==", s.authUid))),
     getDocs(query(collection(db, "payments"), where("authUid", "==", s.authUid))),
-    getDoc(doc(db, "courseFees", s.course))
+    getDoc(doc(db, "courseFees", s.course)),
+    getDocs(query(collection(db, "photos"), where("authUid", "==", s.authUid)))
   ]);
 
   const tests = testsSnap.docs
@@ -1094,7 +1121,7 @@ async function renderStudent(s) {
   ].map(([k, v]) => `<div class="row"><span class="muted">${k}</span><b>${esc(v)}</b></div>`).join("");
 
   $("studentView").innerHTML = `
-    <div class="card"><h3>${esc(s.name)}</h3>${details}</div>
+    <div class="card">${photoSnap.empty ? "" : `<img class="bigPhoto" src="${photoSnap.docs[0].data().photo}" alt="">`}<h3>${esc(s.name)}</h3>${details}</div>
     <div class="card"><h3>${t("feeStatus")}</h3>${feeHtml}</div>
     <div class="card">
       <h3>${t("weeklyResults")}</h3>
