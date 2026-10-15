@@ -21,7 +21,8 @@
   .tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; }
   .tabs button { width: auto; margin: 0; white-space: nowrap; background: #dbe2f0; color: #1e3a8a; }
   .tabs button.active { background: #f59e0b; color: #222; }
-  .row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+  .btns { display: flex; gap: 6px; }
   .muted { color: #666; font-size: 13px; }
   .error { color: #b91c1c; font-size: 14px; min-height: 18px; }
   .hidden { display: none !important; }
@@ -63,6 +64,7 @@
       <button data-tab="dashboard" class="active">Dashboard</button>
       <button data-tab="batches">Batches</button>
       <button data-tab="students">Students</button>
+      <button data-tab="tests">Tests</button>
     </div>
     <div id="adminContent"></div>
   </div>
@@ -78,12 +80,10 @@ import {
   signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, getDocs, setDoc, addDoc, collection, query, where, serverTimestamp
+  getFirestore, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc,
+  collection, query, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// ===================================================================
-// STEP 1: Firebase Console se copy ki hui config yahan paste karein
-// ===================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyAb5p0EQGaHUPpveH5EYQ5My1AR8UKX-T8",
   authDomain: "vedant-institute-30a7d.firebaseapp.com",
@@ -92,7 +92,6 @@ const firebaseConfig = {
   messagingSenderId: "185126493548",
   appId: "1:185126493548:web:dc13482707a672b269e749"
 };
-// ===================================================================
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -102,13 +101,14 @@ const db = getFirestore(app);
 const secondaryAuth = getAuth(initializeApp(firebaseConfig, "secondary"));
 
 const STUDENT_DOMAIN = "vedantstudent.app";
+const MAX_TEST_MARKS = 20;
 
 // ---------- Helpers ----------
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const studentEmail = (roll) => `${roll.toLowerCase()}@${STUDENT_DOMAIN}`;
-// "2005-03-15" -> "15032005" (ye student ka password hai)
+// "2005-03-15" -> "15032005" (student ka password)
 const dobToPassword = (iso) => { const [y, m, d] = iso.split("-"); return d + m + y; };
 // "2005-03-15" -> "15-03-2005" (display ke liye)
 const fmtDate = (iso) => (iso ? iso.split("-").reverse().join("-") : "");
@@ -177,7 +177,7 @@ onAuthStateChanged(auth, async (user) => {
     }
     const student = await findStudentByUid(user.uid);
     if (student) {
-      renderStudent(student);
+      await renderStudent(student);
       showView("studentView");
       return;
     }
@@ -198,6 +198,10 @@ async function loadBatches() {
 async function loadStudents() {
   const snap = await getDocs(collection(db, "students"));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.rollNo.localeCompare(b.rollNo));
+}
+async function loadTests() {
+  const snap = await getDocs(collection(db, "tests"));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 }
 
 // ---------- Admin tabs ----------
@@ -220,6 +224,11 @@ async function openAdminTab(tab) {
         $("filterBatch").onchange = safe(refreshStudentList);
         await refreshStudentList();
       }
+    } else if (tab === "tests") {
+      box.innerHTML = await renderTests();
+      if ($("testForm")) $("testForm").onsubmit = safe(saveTest);
+      box.querySelectorAll("[data-marks]").forEach((b) => (b.onclick = safe(() => openMarks(b.dataset.marks))));
+      box.querySelectorAll("[data-del]").forEach((b) => (b.onclick = safe(() => deleteTest(b.dataset.del))));
     }
   } catch (err) {
     box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
@@ -353,19 +362,167 @@ async function saveStudent(e) {
   openAdminTab("students");
 }
 
+// Weekly tests
+async function renderTests() {
+  const [batches, tests] = await Promise.all([loadBatches(), loadTests()]);
+  if (!batches.length) {
+    return `<div class="card"><p>Pehle "Batches" tab mein batch banayein.</p></div>`;
+  }
+  const options = batches.map((b) =>
+    `<option value="${esc(b.id)}">${esc(b.name)} - ${esc(b.course)}</option>`).join("");
+  const list = tests.map((t) => `
+    <div class="row">
+      <span><b>${esc(t.title)}</b><br>
+      <span class="muted">${esc(t.batchName)} | ${fmtDate(t.date)} | ${t.maxMarks} marks</span></span>
+      <span class="btns">
+        <button class="small" data-marks="${esc(t.id)}">Marks</button>
+        <button class="small secondary" data-del="${esc(t.id)}">Delete</button>
+      </span>
+    </div>`).join("") || `<p class="muted">Abhi koi test nahi hai.</p>`;
+  return `
+    <div class="card">
+      <h3>Naya weekly test</h3>
+      <form id="testForm">
+        <select id="tBatch" required>${options}</select>
+        <input id="tTitle" placeholder="Test ka naam (jaise Test 1 - Oct 2026)" required>
+        <label class="muted">Test ki date</label>
+        <input id="tDate" type="date" required>
+        <p class="muted">Max marks: ${MAX_TEST_MARKS}</p>
+        <button type="submit">Test save karein</button>
+      </form>
+    </div>
+    <div class="card"><h3>Tests (${tests.length})</h3>${list}</div>`;
+}
+
+async function saveTest(e) {
+  e.preventDefault();
+  const batchId = $("tBatch").value;
+  const batch = (await getDoc(doc(db, "batches", batchId))).data();
+  await addDoc(collection(db, "tests"), {
+    batchId,
+    batchName: batch.name,
+    course: batch.course,
+    title: $("tTitle").value.trim(),
+    date: $("tDate").value,
+    maxMarks: MAX_TEST_MARKS,
+    createdAt: serverTimestamp()
+  });
+  openAdminTab("tests");
+}
+
+async function deleteTest(testId) {
+  if (!confirm("Ye test aur iske saare marks delete ho jaayenge. Pakka?")) return;
+  const marksSnap = await getDocs(query(collection(db, "marks"), where("testId", "==", testId)));
+  await Promise.all(marksSnap.docs.map((d) => deleteDoc(d.ref)));
+  await deleteDoc(doc(db, "tests", testId));
+  openAdminTab("tests");
+}
+
+// Marks entry: ek test ke liye batch ke sab students
+async function openMarks(testId) {
+  const box = $("adminContent");
+  box.innerHTML = `<p class="muted">Loading...</p>`;
+  const test = (await getDoc(doc(db, "tests", testId))).data();
+  const [students, marksSnap] = await Promise.all([
+    loadStudents(),
+    getDocs(query(collection(db, "marks"), where("testId", "==", testId)))
+  ]);
+  const existing = Object.fromEntries(marksSnap.docs.map((d) => [d.data().rollNo, d.data().marks]));
+  const batchStudents = students.filter((s) => s.batchId === test.batchId);
+
+  const rows = batchStudents.map((s) => `
+    <div class="row">
+      <span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}</span>
+      <input class="mk" type="number" min="0" max="${MAX_TEST_MARKS}" step="1"
+        data-roll="${esc(s.rollNo)}" data-uid="${esc(s.authUid)}"
+        value="${existing[s.rollNo] ?? ""}" style="width:90px;margin:0">
+    </div>`).join("");
+
+  box.innerHTML = `
+    <div class="card">
+      <button id="backTests" class="small secondary">Tests par wapas</button>
+      <h3 style="margin-top:12px">${esc(test.title)}</h3>
+      <p class="muted">${esc(test.batchName)} | ${fmtDate(test.date)} | Max marks: ${MAX_TEST_MARKS}</p>
+      ${rows || `<p class="muted">Is batch mein koi student nahi hai.</p>`}
+      ${batchStudents.length ? `<button id="saveMarks">Marks save karein</button>` : ""}
+      <p id="marksMsg" class="muted">Khali chhodne par us student ke marks hat jaate hain.</p>
+    </div>`;
+
+  $("backTests").onclick = () => openAdminTab("tests");
+  if (batchStudents.length) {
+    $("saveMarks").onclick = safe(() => saveMarks(test, testId));
+  }
+}
+
+async function saveMarks(test, testId) {
+  const inputs = [...document.querySelectorAll(".mk")];
+  const jobs = [];
+  for (const inp of inputs) {
+    const roll = inp.dataset.roll;
+    const raw = inp.value.trim();
+    const ref = doc(db, "marks", `${testId}_${roll}`);
+    if (raw === "") {
+      jobs.push(deleteDoc(ref));
+      continue;
+    }
+    const m = Number(raw);
+    if (!Number.isInteger(m) || m < 0 || m > MAX_TEST_MARKS) {
+      alert(`${roll}: marks 0 se ${MAX_TEST_MARKS} ke beech poore number hone chahiye.`);
+      return;
+    }
+    jobs.push(setDoc(ref, {
+      testId,
+      rollNo: roll,
+      authUid: inp.dataset.uid,
+      batchId: test.batchId,
+      marks: m,
+      updatedAt: serverTimestamp()
+    }));
+  }
+  await Promise.all(jobs);
+  $("marksMsg").textContent = `Marks save ho gaye (${inputs.length} students).`;
+}
+
 // ---------- Student view ----------
-function renderStudent(s) {
+async function renderStudent(s) {
+  const [testsSnap, marksSnap] = await Promise.all([
+    getDocs(collection(db, "tests")),
+    getDocs(query(collection(db, "marks"), where("authUid", "==", s.authUid)))
+  ]);
+  const marks = Object.fromEntries(marksSnap.docs.map((d) => [d.data().testId, d.data().marks]));
+  const tests = testsSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((t) => t.batchId === s.batchId)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  const scored = tests.filter((t) => marks[t.id] !== undefined);
+  const avg = scored.length
+    ? (scored.reduce((sum, t) => sum + marks[t.id], 0) / scored.length).toFixed(1)
+    : null;
+
+  const resultRows = tests.map((t) => `
+    <div class="row">
+      <span>${esc(t.title)}<br><span class="muted">${fmtDate(t.date)}</span></span>
+      <b>${marks[t.id] === undefined ? "Abhi nahi" : `${marks[t.id]} / ${t.maxMarks}`}</b>
+    </div>`).join("") || `<p class="muted">Abhi koi test nahi hua.</p>`;
+
   const fields = [
     ["Roll No", s.rollNo], ["Course", s.course], ["Batch", s.batchName],
     ["Father", s.father], ["Mother", s.mother], ["DOB", fmtDate(s.dob)],
     ["Phone", s.phone], ["Address", s.address]
   ];
+
   $("studentView").innerHTML = `
     <div class="card">
       <h3>${esc(s.name)}</h3>
       ${fields.map(([k, v]) => `<div class="row"><span class="muted">${k}</span><b>${esc(v)}</b></div>`).join("")}
     </div>
-    <div class="card muted">Weekly test, exam result, fees aur certificate ka section agle steps mein add hoga.</div>`;
+    <div class="card">
+      <h3>Weekly test results</h3>
+      ${resultRows}
+      ${avg !== null ? `<div class="row"><span>Average</span><b>${avg} / ${MAX_TEST_MARKS}</b></div>` : ""}
+    </div>
+    <div class="card muted">Fees aur certificate ka section agle steps mein add hoga.</div>`;
 }
 </script>
 </body>
