@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0b1d4a">
 <title>Vedant Sri Computer Institute</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -147,6 +148,9 @@
   .prev { display: block; height: 70px; width: auto; background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.4); border-radius: 12px; padding: 4px; margin: 8px 0; }
   .bigPhoto { width: 90px; height: 90px; border-radius: 16px; object-fit: cover; display: block; margin-bottom: 10px; border: 1px solid rgba(255,255,255,.35); box-shadow: 0 8px 20px rgba(2,6,23,.35); }
   .hidden { display: none !important; }
+  textarea { width: 100%; padding: 12px 14px; margin: 6px 0; border: 1px solid rgba(255,255,255,.28); border-radius: 14px; font-size: 15px; background: rgba(255,255,255,.1); color: #fff; font-family: inherit; resize: vertical; }
+  textarea:focus { outline: none; border-color: rgba(103,232,249,.9); }
+  .pre { white-space: pre-wrap; font-size: 14px; line-height: 1.6; background: rgba(255,255,255,.07); border-radius: 12px; padding: 10px 12px; margin: 6px 0; }
 
   /* ---------- Photo buttons ---------- */
   .photoBtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
@@ -352,6 +356,9 @@
       <button data-tab="tests" data-i18n="navTests">Tests &amp; Exams</button>
       <button data-tab="fees" data-i18n="navFees">Fees</button>
       <button data-tab="collection" data-i18n="navCollection">Collection &amp; Dues</button>
+      <button data-tab="attendance" data-i18n="attendance">Attendance</button>
+      <button data-tab="enquiries" data-i18n="navEnquiries">Enquiries</button>
+      <button data-tab="notices" data-i18n="navNotices">Notices</button>
       <button data-tab="settings" data-i18n="navSettings">Settings</button>
     </div>
     <div id="adminContent"></div>
@@ -359,6 +366,7 @@
 
   <!-- STUDENT -->
   <div id="studentView" class="hidden"></div>
+  <div id="verifyView" class="loginWrap hidden"><div class="card" id="verifyCard"></div></div>
 </main>
 
 <footer class="foot">© <span id="footName">Vedant Sri Computer Institute</span> · <span id="footYear">2026</span></footer>
@@ -390,6 +398,7 @@ const db = getFirestore(app);
 const secondaryAuth = getAuth(initializeApp(firebaseConfig, "secondary"));
 
 const STUDENT_DOMAIN = "vedantstudent.app";
+const VERIFY_CODE = new URLSearchParams(location.search).get("verify");
 const MAX_WEEKLY = 20;
 
 // ---------- Translations (English default, Hindi optional) ----------
@@ -466,7 +475,25 @@ const T = {
     whatsapp: "WhatsApp", noPhone: "No phone number",
     noPhoneList: "No student in the dues list has a phone number.",
     forMonth: "Fee for month", thisMonth: "This month",
-    msgFee: "Dear {name} (Roll No {roll}), this is a reminder from {institute} that your fee balance for {course} is {amount}. Kindly complete the payment at the earliest. Thank you."
+    msgFee: "Dear {name} (Roll No {roll}), this is a reminder from {institute} that your fee balance for {course} is {amount}. Kindly complete the payment at the earliest. Thank you.",
+    attendance: "Attendance", attPresent: "Present", attAbsent: "Absent", attLeave: "Leave", attNotMarked: "Not marked",
+    attSave: "Save attendance", attSaved: "Attendance saved.", attReport: "Monthly attendance report",
+    attOverall: "Overall attendance", attThisMonth: "This month's attendance", pickDate: "Please pick a date.",
+    receipt: "Receipt", idCard: "ID card", exportData: "Export data (CSV)", exportStudents: "Students list",
+    exportFees: "Fee balance", exportPayments: "Payments", exportAttendance: "Attendance", exportMarks: "Marks (CSV)",
+    navEnquiries: "Enquiries", enqTitle: "New enquiry", enqSave: "Save enquiry", enqList: "Enquiries",
+    noEnquiries: "No enquiries yet.", enq_new: "New", enq_contacted: "Contacted", enq_joined: "Joined", enq_closed: "Closed",
+    navNotices: "Notices", noticeNew: "New notice", noticeTitle: "Title", noticeBody: "Message", audience: "For",
+    audAll: "All students", noticeSave: "Publish notice", noNotices: "No notices yet.",
+    details: "Details", timetable: "Class timetable", saveTimetable: "Save timetable", materials: "Study material",
+    materialTitle: "Material name", addMaterial: "Add material", noMaterials: "No material yet.",
+    badUrl: "Link must start with https://", timetableSaved: "Timetable saved.",
+    staffTitle: "Staff accounts", staffEmail: "Staff email", staffPass: "Password (min 6 characters)",
+    addStaff: "Add staff", removeStaff: "Remove access", noStaff: "No staff accounts yet.",
+    staffAdded: "Staff added. They can log in from the Admin Login tab with email and password.",
+    staffRemoved: "Access removed.", verifyTitle: "Certificate verification", verifyOk: "Valid certificate.",
+    verifyNo: "No valid certificate found for this number.", verifyCheck: "Check", verifyBack: "Go to login",
+    certNo: "Certificate no", marksLabel: "Marks", examLabel: "Exam", confirmGeneric: "Are you sure?", open: "Open"
   },
   hi: {
     adminLogin: "एडमिन लॉगिन", studentLogin: "छात्र लॉगिन", login: "लॉगिन", logout: "लॉगआउट",
@@ -540,7 +567,25 @@ const T = {
     whatsapp: "WhatsApp", noPhone: "फोन नंबर नहीं है",
     noPhoneList: "बकाया सूची में किसी छात्र का फोन नंबर नहीं है।",
     forMonth: "किस महीने की फीस", thisMonth: "इस महीने",
-    msgFee: "प्रिय {name} (रोल नंबर {roll}), {institute} की ओर से याद दिलाना है कि {course} की आपकी बकाया फीस {amount} है। कृपया जल्द से जल्द भुगतान पूरा करें। धन्यवाद।"
+    msgFee: "प्रिय {name} (रोल नंबर {roll}), {institute} की ओर से याद दिलाना है कि {course} की आपकी बकाया फीस {amount} है। कृपया जल्द से जल्द भुगतान पूरा करें। धन्यवाद।",
+    attendance: "हाज़िरी", attPresent: "उपस्थित", attAbsent: "अनुपस्थित", attLeave: "छुट्टी", attNotMarked: "दर्ज नहीं",
+    attSave: "हाज़िरी सेव करें", attSaved: "हाज़िरी सेव हो गई।", attReport: "मासिक हाज़िरी रिपोर्ट",
+    attOverall: "कुल हाज़िरी", attThisMonth: "इस महीने की हाज़िरी", pickDate: "कृपया तारीख चुनें।",
+    receipt: "रसीद", idCard: "आईडी कार्ड", exportData: "डेटा निर्यात करें (CSV)", exportStudents: "छात्र सूची",
+    exportFees: "फीस बकाया", exportPayments: "पेमेंट", exportAttendance: "हाज़िरी", exportMarks: "अंक (CSV)",
+    navEnquiries: "पूछताछ", enqTitle: "नई पूछताछ", enqSave: "पूछताछ सेव करें", enqList: "पूछताछ सूची",
+    noEnquiries: "अभी कोई पूछताछ नहीं है।", enq_new: "नई", enq_contacted: "संपर्क किया", enq_joined: "दाखिला हुआ", enq_closed: "बंद",
+    navNotices: "सूचनाएं", noticeNew: "नई सूचना", noticeTitle: "शीर्षक", noticeBody: "संदेश", audience: "किसके लिए",
+    audAll: "सभी छात्र", noticeSave: "सूचना प्रकाशित करें", noNotices: "अभी कोई सूचना नहीं है।",
+    details: "विवरण", timetable: "कक्षा का समय-सारणी", saveTimetable: "समय-सारणी सेव करें", materials: "अध्ययन सामग्री",
+    materialTitle: "सामग्री का नाम", addMaterial: "सामग्री जोड़ें", noMaterials: "अभी कोई सामग्री नहीं है।",
+    badUrl: "लिंक https:// से शुरू होना चाहिए", timetableSaved: "समय-सारणी सेव हो गई।",
+    staffTitle: "स्टाफ खाते", staffEmail: "स्टाफ ईमेल", staffPass: "पासवर्ड (कम से कम 6 अक्षर)",
+    addStaff: "स्टाफ जोड़ें", removeStaff: "पहुंच हटाएं", noStaff: "अभी कोई स्टाफ खाता नहीं है।",
+    staffAdded: "स्टाफ जोड़ दिया गया। वो Admin Login टैब से ईमेल और पासवर्ड से लॉगिन कर सकते हैं।",
+    staffRemoved: "पहुंच हटा दी गई।", verifyTitle: "प्रमाण पत्र सत्यापन", verifyOk: "वैध प्रमाण पत्र।",
+    verifyNo: "इस नंबर का वैध प्रमाण पत्र नहीं मिला।", verifyCheck: "जांचें", verifyBack: "लॉगिन पर जाएं",
+    certNo: "प्रमाण पत्र नंबर", marksLabel: "अंक", examLabel: "परीक्षा", confirmGeneric: "पक्का?", open: "खोलें"
   }
 };
 let LANG = localStorage.getItem("vsc_lang") || "en";
@@ -679,10 +724,14 @@ async function findStudentByUid(uid) {
 }
 
 onAuthStateChanged(auth, async (user) => {
+  if (VERIFY_CODE) return;
   if (!user) { currentRole = null; showView("loginView"); return; }
   try {
-    if (await isAdmin(user.uid)) {
+    const adm = await getDoc(doc(db, "admins", user.uid));
+    if (adm.exists()) {
       currentRole = "admin";
+      currentStaffRole = adm.data().role || "admin";
+      applyRoleTabs();
       showView("adminView");
       openAdminTab("dashboard");
       return;
@@ -742,6 +791,7 @@ async function openAdminTab(tab) {
   try {
     if (tab === "dashboard") {
       box.innerHTML = await renderDashboard();
+      bindExports();
     } else if (tab === "batches") {
       box.innerHTML = await renderBatches();
       bindBatches();
@@ -757,9 +807,19 @@ async function openAdminTab(tab) {
     } else if (tab === "collection") {
       box.innerHTML = await renderCollection();
       bindCollection();
+    } else if (tab === "attendance") {
+      box.innerHTML = await renderAttendance();
+      bindAttendance();
+    } else if (tab === "enquiries") {
+      box.innerHTML = await renderEnquiries();
+      bindEnquiries();
+    } else if (tab === "notices") {
+      box.innerHTML = await renderNotices();
+      bindNotices();
     } else if (tab === "settings") {
-      box.innerHTML = renderSettingsTab();
+      box.innerHTML = renderSettingsTab() + await renderStaffCard();
       bindSettings();
+      bindStaffCard();
     }
   } catch (err) {
     box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
@@ -779,7 +839,7 @@ async function renderDashboard() {
       <div class="row"><span>${t("totalStudents")}</span><b>${students.length}</b></div>
       <div class="row"><span>${t("totalTests")}</span><b>${tests.length}</b></div>
     </div>
-    <div class="card"><h3>${t("batchWise")}</h3>${rows}</div>`;
+    <div class="card"><h3>${t("batchWise")}</h3>${rows}</div>${exportCardHTML()}`;
 }
 
 // ---------- Batches ----------
@@ -788,7 +848,7 @@ async function renderBatches() {
   const list = batches.map((b) => `
     <div class="row">
       <span><b>${esc(b.name)}</b><br><span class="muted">${esc(b.course)}</span></span>
-      <span class="btns"><button class="small secondary" data-del-batch="${esc(b.id)}">${t("delete")}</button></span>
+      <span class="btns"><button class="small" data-batch-info="${esc(b.id)}">${t("details")}</button><button class="small secondary" data-del-batch="${esc(b.id)}">${t("delete")}</button></span>
     </div>`).join("") || `<p class="muted">${t("noBatch")}</p>`;
   return `
     <div class="card">
@@ -804,6 +864,8 @@ async function renderBatches() {
 
 function bindBatches() {
   $("batchForm").onsubmit = safe(saveBatch);
+  document.querySelectorAll("#adminContent [data-batch-info]").forEach((b) =>
+    (b.onclick = safe(() => openBatchInfo(b.dataset.batchInfo))));
   document.querySelectorAll("#adminContent [data-del-batch]").forEach((b) =>
     (b.onclick = safe(() => deleteBatch(b.dataset.delBatch))));
 }
@@ -918,12 +980,14 @@ async function refreshStudentList() {
         <span class="muted">${esc(names[s.batchId] || "")} | ${t(s.feePlan === "monthly" ? "monthly" : "oneTime")}</span></span></span>
         <span class="btns">
           <button class="small secondary" data-edit="${esc(s.rollNo)}">${t("edit")}</button>
+          <button class="small secondary" data-idcard="${esc(s.rollNo)}">${t("idCard")}</button>
           <button class="small secondary" data-del-student="${esc(s.rollNo)}">${t("delete")}</button>
         </span>
       </div>`).join("");
   const box = $("studentList");
   box.innerHTML = list || `<p class="muted">${t("noStudents")}</p>`;
   box.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = safe(() => editStudent(b.dataset.edit))));
+  box.querySelectorAll("[data-idcard]").forEach((b) => (b.onclick = safe(() => makeStudentIdCard(b.dataset.idcard))));
   box.querySelectorAll("[data-del-student]").forEach((b) =>
     (b.onclick = safe(() => deleteStudent(b.dataset.delStudent))));
 }
@@ -1107,7 +1171,7 @@ async function openMarks(testId) {
     <div class="row">
       <span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}</span>
       <input class="mk" type="number" min="0" max="${test.maxMarks}" step="1"
-        data-roll="${esc(s.rollNo)}" data-uid="${esc(s.authUid)}"
+        data-roll="${esc(s.rollNo)}" data-uid="${esc(s.authUid)}" data-name="${esc(s.name)}" data-course="${esc(s.course)}" data-father="${esc(s.father || "")}"
         value="${existing[s.rollNo] ?? ""}" style="width:90px;margin:0">
     </div>`).join("");
 
@@ -1115,6 +1179,7 @@ async function openMarks(testId) {
   box.innerHTML = `
     <div class="card">
       <button id="backTests" class="small secondary">${t("back")}</button>
+      <button id="exportMarks" class="small secondary">${t("exportMarks")}</button>
       <h3 style="margin-top:12px">${esc(test.title)}</h3>
       <p class="muted">${esc(test.batchName)} | ${fmtDate(test.date)} | ${t("maxMarks")}: ${test.maxMarks}${passInfo}</p>
       ${rows || `<p class="muted">${t("noStudentsInBatch")}</p>`}
@@ -1122,6 +1187,7 @@ async function openMarks(testId) {
       <p id="marksMsg" class="muted">${t("clearHint")}</p>
     </div>`;
 
+  $("exportMarks").onclick = () => exportMarksCSV(test, testId, batchStudents, existing);
   $("backTests").onclick = () => openAdminTab("tests");
   if (batchStudents.length) $("saveMarks").onclick = safe(() => saveMarks(test, testId));
 }
@@ -1151,6 +1217,12 @@ async function saveMarks(test, testId) {
     }));
   }
   await Promise.all(jobs);
+  if (test.type === "annual" && test.passMarks != null) {
+    await Promise.all(inputs.map((inp) => {
+      const raw = inp.value.trim();
+      return syncCertificate(test, testId, inp.dataset, raw === "" ? null : Number(raw));
+    }));
+  }
   $("marksMsg").textContent = t("marksSaved");
 }
 
@@ -1248,6 +1320,7 @@ async function openPayments(roll, month = "") {
   const history = pays.map((p) => `
     <div class="row">
       <span>${fmtDate(p.date)} | ${money(p.amount)} | ${t(p.mode)}${p.forMonth ? ` · ${p.forMonth}` : ""}${p.note ? `<br><span class="muted">${esc(p.note)}</span>` : ""}</span>
+      <button class="small secondary" data-receipt="${esc(p.id)}">${t("receipt")}</button>
       <button class="small secondary" data-del-pay="${esc(p.id)}">${t("delete")}</button>
     </div>`).join("") || `<p class="muted">${t("noPayments")}</p>`;
 
@@ -1283,6 +1356,8 @@ async function openPayments(roll, month = "") {
 
   $("backFees").onclick = () => openAdminTab("fees");
   $("payForm").onsubmit = safe((e) => savePayment(e, s.rollNo, s.authUid));
+  document.querySelectorAll("#adminContent [data-receipt]").forEach((b) =>
+    (b.onclick = () => downloadReceipt(pays.find((p) => p.id === b.dataset.receipt), s, total, paid)));
   document.querySelectorAll("#adminContent [data-del-pay]").forEach((b) =>
     (b.onclick = safe(() => deletePayment(b.dataset.delPay, s.rollNo))));
 }
@@ -1589,7 +1664,7 @@ async function renderStudent(s) {
         ? `<div class="row"><span class="muted">${t("installments")}</span><b>${Math.floor(paid / cfee.monthlyFee)} ${t("ofWord")} ${cfee.months || 0}</b></div>`
         : ""}
       <h3 style="margin:14px 0 6px;font-size:14px">${t("paymentHistory")}</h3>
-      ${pays.map((p) => `<div class="row"><span>${fmtDate(p.date)} | ${t(p.mode)}</span><b>${money(p.amount)}</b></div>`).join("")
+      ${pays.map((p) => `<div class="row"><span>${fmtDate(p.date)} | ${t(p.mode)}</span><span class="btns"><b>${money(p.amount)}</b><button class="small secondary" data-receipt="${esc(p.id)}">${t("receipt")}</button></span></div>`).join("")
         || `<p class="muted">${t("noPayments")}</p>`}`
     : `<p class="muted">${t("feeNotSetStudent")}</p>`;
 
@@ -1600,7 +1675,7 @@ async function renderStudent(s) {
   ].map(([k, v]) => `<div class="row"><span class="muted">${k}</span><b>${esc(v)}</b></div>`).join("");
 
   $("studentView").innerHTML = `
-    <div class="card">${photoSnap.empty ? "" : `<img class="bigPhoto" src="${photoSnap.docs[0].data().photo}" alt="">`}<h3>${esc(s.name)}</h3>${details}</div>
+    <div class="card">${photoSnap.empty ? "" : `<img class="bigPhoto" src="${photoSnap.docs[0].data().photo}" alt="">`}<h3>${esc(s.name)}</h3>${details}<button id="idCardBtn" class="secondary">${t("idCard")}</button></div>
     <div class="card"><h3>${t("feeStatus")}</h3>${feeHtml}</div>
     <div class="card">
       <h3>${t("weeklyResults")}</h3>
@@ -1612,12 +1687,16 @@ async function renderStudent(s) {
       ${annual.map(resultRow).join("") || `<p class="muted">${t("noResults")}</p>`}
     </div>`;
 
+  await renderStudentExtras(s);
+  $("idCardBtn").onclick = safe(() => makeIdCard(s, photoSnap.empty ? null : photoSnap.docs[0].data().photo));
+  document.querySelectorAll("#studentView [data-receipt]").forEach((b) =>
+    (b.onclick = safe(() => downloadReceipt(pays.find((p) => p.id === b.dataset.receipt), s, total, paid))));
   document.querySelectorAll("#studentView [data-cert]").forEach((b) =>
     (b.onclick = safe(() => downloadCertificate(b.dataset.cert))));
 }
 
 // Certificate PDF browser mein banta hai (English naam hona chahiye)
-function downloadCertificate(testId) {
+async function downloadCertificate(testId) {
   const s = currentStudent;
   const test = studentCache.tests[testId];
   const m = studentCache.marks[testId];
@@ -1670,11 +1749,18 @@ function downloadCertificate(testId) {
   pdf.text(`has successfully passed the ${test.title} held on ${fmtDate(test.date)}`, W / 2, 127, center);
   pdf.text(`with ${m} out of ${test.maxMarks} marks.`, W / 2, 135, center);
 
-  const certNo = `VSC-${(test.date || "").slice(0, 4)}-${s.rollNo}-${testId.slice(-4).toUpperCase()}`;
+  const certNo = certNoOf(test, testId, s.rollNo);
+  let qr = null;
+  try { qr = await QRCode.toDataURL(verifyUrl(certNo), { margin: 1, width: 240 }); } catch (e) { qr = null; }
   pdf.setFontSize(10);
   pdf.setTextColor(80, 80, 80);
   pdf.text(`Certificate No: ${certNo}`, 22, H - 24);
   pdf.text(`Exam date: ${fmtDate(test.date)}`, 22, H - 18);
+  if (qr) {
+    pdf.addImage(qr, "PNG", 22, H - 64, 26, 26);
+    pdf.setFontSize(7);
+    pdf.text("Scan to verify", 22, H - 36);
+  }
 
   if (settings.signatureData) {
     const sw = Math.min(50, 18 * (settings.signRatio || 2));
@@ -1689,6 +1775,587 @@ function downloadCertificate(testId) {
 
   pdf.save(`Certificate_${s.rollNo}.pdf`);
 }
+
+// ================= Naye features: staff, attendance, receipts, ID card, export, enquiries, notices, verification, batch info =================
+let currentStaffRole = "admin";
+const ADMIN_ONLY_TABS = ["batches", "tests", "settings", "notices"];
+function applyRoleTabs() {
+  document.querySelectorAll("[data-tab]").forEach((b) => {
+    b.classList.toggle("hidden", currentStaffRole !== "admin" && ADMIN_ONLY_TABS.includes(b.dataset.tab));
+  });
+}
+
+const certNoOf = (test, testId, roll) =>
+  `VSC-${(test.date || "").slice(0, 4)}-${roll}-${testId.slice(-4).toUpperCase()}`;
+const verifyUrl = (code) =>
+  `${location.origin}${location.pathname}?verify=${encodeURIComponent(code)}`;
+
+// Verification ke liye certificate ka public record (sirf naam, course, exam aur marks)
+async function syncCertificate(test, testId, ds, m) {
+  const code = certNoOf(test, testId, ds.roll);
+  const ref = doc(db, "certificates", code);
+  if (m === null || !(m >= test.passMarks)) return deleteDoc(ref);
+  return setDoc(ref, {
+    certNo: code, name: ds.name, course: ds.course,
+    examTitle: test.title, examDate: test.date,
+    marks: m, maxMarks: test.maxMarks, passed: true
+  });
+}
+
+// ---------- CSV export (Excel mein seedha khulta hai) ----------
+function downloadCSV(name, rows) {
+  const cell = (v) => {
+    const str = String(v ?? "");
+    return /[",\r\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+  };
+  const text = String.fromCharCode(0xFEFF) + rows.map((r) => r.map(cell).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function exportStudentsCSV() {
+  const [students, batches] = await Promise.all([loadStudents(), loadBatches()]);
+  const bn = Object.fromEntries(batches.map((b) => [b.id, b.name]));
+  const rows = [["Roll No", "Name", "Father", "Mother", "DOB", "Phone", "Address", "Batch", "Course", "Fee plan"]];
+  students.forEach((s) => rows.push([
+    s.rollNo, s.name, s.father, s.mother, s.dob, s.phone, s.address,
+    bn[s.batchId] || s.batchName, s.course, s.feePlan === "monthly" ? "Monthly" : "One-time"
+  ]));
+  downloadCSV(`students_${todayISO()}.csv`, rows);
+}
+
+async function exportFeesCSV() {
+  const [students, fees, payments] = await Promise.all([loadStudents(), loadCourseFees(), loadPayments()]);
+  const rows = [["Roll No", "Name", "Course", "Plan", "Total fee", "Paid", "Balance", "Phone"]];
+  students.forEach((s) => {
+    const total = feeTotal(s, fees[s.course]);
+    const paid = sumPaid(payments.filter((p) => p.rollNo === s.rollNo));
+    rows.push([s.rollNo, s.name, s.course, s.feePlan === "monthly" ? "Monthly" : "One-time", total, paid, total - paid, s.phone]);
+  });
+  downloadCSV(`fees_${todayISO()}.csv`, rows);
+}
+
+async function exportPaymentsCSV() {
+  const [students, payments] = await Promise.all([loadStudents(), loadPayments()]);
+  const nm = Object.fromEntries(students.map((s) => [s.rollNo, s.name]));
+  const rows = [["Date", "Roll No", "Name", "Amount", "Mode", "For month", "Note"]];
+  payments
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((p) => rows.push([p.date, p.rollNo, nm[p.rollNo] || "", p.amount, p.mode, p.forMonth || "", p.note || ""]));
+  downloadCSV(`payments_${todayISO()}.csv`, rows);
+}
+
+async function exportAttendanceCSV() {
+  const [students, snap] = await Promise.all([loadStudents(), getDocs(collection(db, "attendance"))]);
+  const nm = Object.fromEntries(students.map((s) => [s.rollNo, s.name]));
+  const label = { P: "Present", A: "Absent", L: "Leave" };
+  const rows = [["Date", "Roll No", "Name", "Status"]];
+  snap.docs
+    .map((d) => d.data())
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
+    .forEach((a) => rows.push([a.date, a.rollNo, nm[a.rollNo] || "", label[a.status] || a.status]));
+  downloadCSV(`attendance_${todayISO()}.csv`, rows);
+}
+
+function exportMarksCSV(test, testId, students, existing) {
+  const rows = [["Roll No", "Name", "Marks", "Max marks", "Result"]];
+  students.forEach((s) => {
+    const m = existing[s.rollNo];
+    const res = m === undefined || test.passMarks == null ? "" : (m >= test.passMarks ? "Pass" : "Fail");
+    rows.push([s.rollNo, s.name, m ?? "", test.maxMarks, res]);
+  });
+  downloadCSV(`marks_${(test.title || "test").replace(/[^a-z0-9]+/gi, "_")}.csv`, rows);
+}
+
+function exportCardHTML() {
+  return `
+    <div class="card">
+      <h3>${t("exportData")}</h3>
+      <div class="btns" style="flex-wrap:wrap">
+        <button class="small secondary" id="exStudents">${t("exportStudents")}</button>
+        <button class="small secondary" id="exFees">${t("exportFees")}</button>
+        <button class="small secondary" id="exPayments">${t("exportPayments")}</button>
+        <button class="small secondary" id="exAtt">${t("exportAttendance")}</button>
+      </div>
+    </div>`;
+}
+
+function bindExports() {
+  $("exStudents").onclick = safe(exportStudentsCSV);
+  $("exFees").onclick = safe(exportFeesCSV);
+  $("exPayments").onclick = safe(exportPaymentsCSV);
+  $("exAtt").onclick = safe(exportAttendanceCSV);
+}
+
+// ---------- Attendance ----------
+async function loadAttendance(batchId) {
+  const snap = await getDocs(query(collection(db, "attendance"), where("batchId", "==", batchId)));
+  return snap.docs.map((d) => d.data());
+}
+
+async function renderAttendance() {
+  const batches = await loadBatches();
+  if (!batches.length) return `<div class="card"><p>${t("noBatch")}</p></div>`;
+  const opts = batches.map((b) => `<option value="${esc(b.id)}">${esc(b.name)} - ${esc(b.course)}</option>`).join("");
+  return `
+    <div class="card">
+      <h3>${t("attendance")}</h3>
+      <label class="muted">${t("batch")}</label>
+      <select id="attBatch">${opts}</select>
+      <label class="muted">${t("date")}</label>
+      <input id="attDate" type="date" value="${todayISO()}">
+      <div id="attList"></div>
+    </div>
+    <div class="card">
+      <h3>${t("attReport")}</h3>
+      <label class="muted">${t("monthLabel")}</label>
+      <input id="attMonth" type="month" value="${todayISO().slice(0, 7)}">
+      <div id="attReport"></div>
+    </div>`;
+}
+
+async function refreshAttList() {
+  const batchId = $("attBatch").value;
+  const date = $("attDate").value || todayISO();
+  const [students, att] = await Promise.all([loadStudents(), loadAttendance(batchId)]);
+  const mine = students.filter((s) => s.batchId === batchId);
+  const cur = Object.fromEntries(att.filter((a) => a.date === date).map((a) => [a.rollNo, a.status]));
+  const opt = (v, label, sel) => `<option value="${v}" ${sel === v ? "selected" : ""}>${label}</option>`;
+  $("attList").innerHTML = mine.length
+    ? mine.map((s) => {
+        const sel = cur[s.rollNo] || "";
+        return `
+        <div class="row">
+          <span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}</span>
+          <select class="attSel" data-roll="${esc(s.rollNo)}" style="width:auto;margin:0;padding:8px 10px">
+            ${opt("", t("attNotMarked"), sel)}
+            ${opt("P", t("attPresent"), sel)}
+            ${opt("A", t("attAbsent"), sel)}
+            ${opt("L", t("attLeave"), sel)}
+          </select>
+        </div>`;
+      }).join("") + `<button id="attSave">${t("attSave")}</button>`
+    : `<p class="muted">${t("noStudentsInBatch")}</p>`;
+  if ($("attSave")) $("attSave").onclick = safe(saveAttendance);
+}
+
+async function saveAttendance() {
+  const batchId = $("attBatch").value;
+  const date = $("attDate").value;
+  if (!date) return alert(t("pickDate"));
+  const students = (await loadStudents()).filter((s) => s.batchId === batchId);
+  const jobs = students.map((s) => {
+    const sel = document.querySelector(`.attSel[data-roll="${s.rollNo}"]`);
+    const ref = doc(db, "attendance", `${date}_${s.rollNo}`);
+    const st = sel ? sel.value : "";
+    if (!st) return deleteDoc(ref);
+    return setDoc(ref, {
+      date, rollNo: s.rollNo, batchId, authUid: s.authUid, status: st, updatedAt: serverTimestamp()
+    });
+  });
+  await Promise.all(jobs);
+  alert(t("attSaved"));
+  refreshAttList();
+}
+
+async function refreshAttReport() {
+  const batchId = $("attBatch").value;
+  const month = $("attMonth").value || todayISO().slice(0, 7);
+  const [students, att] = await Promise.all([loadStudents(), loadAttendance(batchId)]);
+  const rows = students.filter((s) => s.batchId === batchId).map((s) => {
+    const recs = att.filter((a) => a.rollNo === s.rollNo && (a.date || "").startsWith(month));
+    const p = recs.filter((a) => a.status === "P").length;
+    const ab = recs.filter((a) => a.status === "A").length;
+    const l = recs.filter((a) => a.status === "L").length;
+    const pct = p + ab ? Math.round((p / (p + ab)) * 100) : null;
+    const cls = pct === null ? "muted" : pct >= 75 ? "okTxt" : "badTxt";
+    return `<div class="row">
+      <span><b>${esc(s.rollNo)}</b> - ${esc(s.name)}<br>
+      <span class="muted">${t("attPresent")}: ${p} · ${t("attAbsent")}: ${ab} · ${t("attLeave")}: ${l}</span></span>
+      <b class="${cls}">${pct === null ? "-" : pct + "%"}</b></div>`;
+  }).join("");
+  $("attReport").innerHTML = rows || `<p class="muted">${t("noStudentsInBatch")}</p>`;
+}
+
+function bindAttendance() {
+  if (!$("attBatch")) return;
+  $("attBatch").onchange = safe(refreshAttList);
+  $("attDate").onchange = safe(refreshAttList);
+  $("attMonth").onchange = safe(refreshAttReport);
+  refreshAttList();
+  refreshAttReport();
+}
+
+// ---------- Fee receipt (PDF) ----------
+function downloadReceipt(p, s, total, paid) {
+  if (!p) return;
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "mm", format: "a5", orientation: "landscape" });
+  const W = 210, navy = [30, 58, 138];
+  const rs = (n) => "Rs. " + Number(n || 0).toLocaleString("en-IN");
+  const no = `RCPT-${(p.date || "").slice(0, 4)}-${p.id.slice(-6).toUpperCase()}`;
+
+  pdf.setFillColor(...navy);
+  pdf.rect(0, 0, W, 24, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(15);
+  pdf.text(settings.name || "Vedant Sri Computer Institute", 12, 12);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(9);
+  if (settings.address) pdf.text(settings.address, 12, 18);
+
+  pdf.setTextColor(15, 23, 42);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(13);
+  pdf.text("PAYMENT RECEIPT", 12, 33);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+
+  const lines = [
+    ["Receipt No", no], ["Date", fmtDate(p.date)], ["Student", s.name], ["Roll No", s.rollNo],
+    ["Course", s.course], ["Payment mode", p.mode || ""], ["Fee for month", p.forMonth || "-"],
+    ["Amount paid", rs(p.amount)], ["Total fee", rs(total)], ["Total paid to date", rs(paid)],
+    ["Balance now", rs(total - paid)]
+  ];
+  let y = 42;
+  lines.forEach(([k, v]) => {
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(k, 12, y);
+    pdf.setTextColor(15, 23, 42);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(String(v), 72, y);
+    pdf.setFont("helvetica", "normal");
+    y += 7;
+  });
+  if (p.note) {
+    pdf.setTextColor(100, 116, 139);
+    pdf.text("Note: " + p.note, 12, y + 2);
+  }
+  pdf.setDrawColor(203, 213, 225);
+  pdf.line(132, 128, 198, 128);
+  pdf.setTextColor(15, 23, 42);
+  pdf.text("Authorised signatory", 165, 133, { align: "center" });
+  pdf.save(`Receipt_${no}.pdf`);
+}
+
+// ---------- Student ID card (CR80 size) ----------
+function makeIdCard(s, photo) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "mm", format: [86, 54], orientation: "landscape" });
+  pdf.setFillColor(15, 23, 42);
+  pdf.rect(0, 0, 86, 13, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(9);
+  pdf.text(String(settings.name || "Vedant Sri Computer Institute").slice(0, 40), 43, 6, { align: "center" });
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7);
+  pdf.text("STUDENT IDENTITY CARD", 43, 10, { align: "center" });
+
+  if (photo) {
+    pdf.addImage(photo, imgFmt(photo), 4, 16, 20, 24);
+  } else {
+    pdf.setFillColor(226, 232, 240);
+    pdf.rect(4, 16, 20, 24, "F");
+    pdf.setTextColor(30, 58, 138);
+    pdf.setFontSize(14);
+    pdf.text(String(s.name || "?")[0].toUpperCase(), 11, 31);
+  }
+
+  pdf.setTextColor(15, 23, 42);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.text(String(s.name || "").slice(0, 26), 28, 22);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7.5);
+  const rows = [["Roll No", s.rollNo], ["Course", s.course], ["Batch", s.batchName || ""], ["DOB", fmtDate(s.dob)], ["Phone", s.phone || ""]];
+  let y = 27;
+  rows.forEach(([k, v]) => {
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(k, 28, y);
+    pdf.setTextColor(15, 23, 42);
+    pdf.text(String(v), 45, y);
+    y += 4.5;
+  });
+  pdf.save(`ID_${s.rollNo}.pdf`);
+}
+
+async function makeStudentIdCard(roll) {
+  const [sSnap, pSnap] = await Promise.all([getDoc(doc(db, "students", roll)), getDoc(doc(db, "photos", roll))]);
+  makeIdCard({ id: roll, ...sSnap.data() }, pSnap.exists() ? pSnap.data().photo : null);
+}
+
+// ---------- Enquiries (admission follow-up) ----------
+async function renderEnquiries() {
+  const snap = await getDocs(collection(db, "enquiries"));
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const stOpts = (cur) => ["new", "contacted", "joined", "closed"]
+    .map((k) => `<option value="${k}" ${cur === k ? "selected" : ""}>${t("enq_" + k)}</option>`).join("");
+  const rows = list.map((e) => `
+    <div class="row">
+      <span><b>${esc(e.name)}</b> <span class="muted">${esc(e.phone || "")} | ${esc(e.course || "")} | ${fmtDate(e.date)}</span>
+      ${e.note ? `<br><span class="muted">${esc(e.note)}</span>` : ""}</span>
+      <span class="btns">
+        <select class="enqSel" data-id="${esc(e.id)}" style="width:auto;margin:0;padding:6px 8px">${stOpts(e.status || "new")}</select>
+        ${currentStaffRole === "admin" ? `<button class="small secondary" data-enq-del="${esc(e.id)}">${t("delete")}</button>` : ""}
+      </span>
+    </div>`).join("") || `<p class="muted">${t("noEnquiries")}</p>`;
+  return `
+    <div class="card">
+      <h3>${t("enqTitle")}</h3>
+      <form id="enqForm">
+        <input id="eName" placeholder="${t("name")}" required>
+        <input id="ePhone" placeholder="${t("phone")}" inputmode="tel">
+        <input id="eCourse" placeholder="${t("course")}">
+        <input id="eNote" placeholder="${t("note")}">
+        <button type="submit">${t("enqSave")}</button>
+      </form>
+    </div>
+    <div class="card"><h3>${t("enqList")} (${list.length})</h3>${rows}</div>`;
+}
+
+function bindEnquiries() {
+  $("enqForm").onsubmit = safe(async (e) => {
+    e.preventDefault();
+    await addDoc(collection(db, "enquiries"), {
+      name: $("eName").value.trim(), phone: $("ePhone").value.trim(),
+      course: $("eCourse").value.trim(), note: $("eNote").value.trim(),
+      status: "new", date: todayISO(), createdAt: serverTimestamp()
+    });
+    openAdminTab("enquiries");
+  });
+  document.querySelectorAll("#adminContent .enqSel").forEach((sel) =>
+    (sel.onchange = safe(() => setDoc(doc(db, "enquiries", sel.dataset.id), { status: sel.value }, { merge: true }))));
+  document.querySelectorAll("#adminContent [data-enq-del]").forEach((b) =>
+    (b.onclick = safe(async () => {
+      if (!confirm(t("confirmGeneric"))) return;
+      await deleteDoc(doc(db, "enquiries", b.dataset.enqDel));
+      openAdminTab("enquiries");
+    })));
+}
+
+// ---------- Notices ----------
+async function renderNotices() {
+  const [batches, snap] = await Promise.all([loadBatches(), getDocs(collection(db, "notices"))]);
+  const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const aud = [`<option value="all">${t("audAll")}</option>`]
+    .concat(batches.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`)).join("");
+  const rows = list.map((n) => `
+    <div class="row" style="display:block">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(n.title)}</b>
+      <button class="small secondary" data-notice-del="${esc(n.id)}">${t("delete")}</button></div>
+      <div class="muted">${fmtDate(n.date)} | ${esc(n.audienceName || "")}</div>
+      <div class="pre">${esc(n.body)}</div>
+    </div>`).join("") || `<p class="muted">${t("noNotices")}</p>`;
+  return `
+    <div class="card">
+      <h3>${t("noticeNew")}</h3>
+      <form id="noticeForm">
+        <input id="nTitle" placeholder="${t("noticeTitle")}" required>
+        <textarea id="nBody" rows="4" placeholder="${t("noticeBody")}" required></textarea>
+        <label class="muted">${t("audience")}</label>
+        <select id="nAud">${aud}</select>
+        <button type="submit">${t("noticeSave")}</button>
+      </form>
+    </div>
+    <div class="card"><h3>${t("navNotices")} (${list.length})</h3>${rows}</div>`;
+}
+
+function bindNotices() {
+  $("noticeForm").onsubmit = safe(async (e) => {
+    e.preventDefault();
+    const sel = $("nAud");
+    await addDoc(collection(db, "notices"), {
+      title: $("nTitle").value.trim(), body: $("nBody").value.trim(),
+      audience: sel.value, audienceName: sel.options[sel.selectedIndex].text,
+      date: todayISO(), createdAt: serverTimestamp()
+    });
+    openAdminTab("notices");
+  });
+  document.querySelectorAll("#adminContent [data-notice-del]").forEach((b) =>
+    (b.onclick = safe(async () => {
+      if (!confirm(t("confirmGeneric"))) return;
+      await deleteDoc(doc(db, "notices", b.dataset.noticeDel));
+      openAdminTab("notices");
+    })));
+}
+
+// ---------- Batch details: timetable + study material ----------
+async function openBatchInfo(id) {
+  currentTab = "batches";
+  const box = $("adminContent");
+  const b = (await getDoc(doc(db, "batches", id))).data();
+  const mats = b.materials || [];
+  box.innerHTML = `
+    <div class="card">
+      <button id="backBatch" class="small secondary">${t("back")}</button>
+      <h3 style="margin-top:12px">${esc(b.name)} <span class="muted">(${esc(b.course)})</span></h3>
+      <label class="muted">${t("timetable")}</label>
+      <textarea id="bTimetable" rows="6">${esc(b.timetable || "")}</textarea>
+      <button id="saveTimetable">${t("saveTimetable")}</button>
+      <h3 style="margin-top:16px">${t("materials")}</h3>
+      ${mats.map((m, i) => `
+        <div class="row">
+          <span><b>${esc(m.title)}</b><br><span class="muted">${esc(m.url)}</span></span>
+          <button class="small secondary" data-mat-del="${i}">${t("delete")}</button>
+        </div>`).join("") || `<p class="muted">${t("noMaterials")}</p>`}
+      <label class="muted">${t("materialTitle")}</label>
+      <input id="mTitle">
+      <label class="muted">Link (URL)</label>
+      <input id="mUrl" placeholder="https://">
+      <button id="addMat">${t("addMaterial")}</button>
+    </div>`;
+  $("backBatch").onclick = () => openAdminTab("batches");
+  $("saveTimetable").onclick = safe(async () => {
+    await setDoc(doc(db, "batches", id), { timetable: $("bTimetable").value }, { merge: true });
+    alert(t("timetableSaved"));
+  });
+  $("addMat").onclick = safe(async () => {
+    const url = $("mUrl").value.trim();
+    if (!/^https?:\/\//.test(url)) return alert(t("badUrl"));
+    const title = $("mTitle").value.trim() || url;
+    await setDoc(doc(db, "batches", id), { materials: [...mats, { title, url }] }, { merge: true });
+    openBatchInfo(id);
+  });
+  box.querySelectorAll("[data-mat-del]").forEach((btn) =>
+    (btn.onclick = safe(async () => {
+      const i = Number(btn.dataset.matDel);
+      await setDoc(doc(db, "batches", id), { materials: mats.filter((_, j) => j !== i) }, { merge: true });
+      openBatchInfo(id);
+    })));
+}
+
+// ---------- Staff accounts (admin only) ----------
+async function renderStaffCard() {
+  const snap = await getDocs(collection(db, "admins"));
+  const staff = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((a) => a.role === "staff");
+  const rows = staff.map((a) => `
+    <div class="row">
+      <span><b>${esc(a.name || "")}</b><br><span class="muted">${esc(a.email || "")}</span></span>
+      <button class="small secondary" data-staff-del="${esc(a.id)}">${t("removeStaff")}</button>
+    </div>`).join("") || `<p class="muted">${t("noStaff")}</p>`;
+  return `
+    <div class="card">
+      <h3>${t("staffTitle")}</h3>
+      <form id="staffForm">
+        <input id="sfName" placeholder="${t("name")}" required>
+        <input id="sfEmail" type="email" placeholder="${t("staffEmail")}" required>
+        <input id="sfPass" type="password" minlength="6" placeholder="${t("staffPass")}" required>
+        <button type="submit">${t("addStaff")}</button>
+      </form>
+      ${rows}
+    </div>`;
+}
+
+function bindStaffCard() {
+  if (!$("staffForm")) return;
+  $("staffForm").onsubmit = safe(async (e) => {
+    e.preventDefault();
+    const email = $("sfEmail").value.trim();
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, $("sfPass").value);
+    await signOut(secondaryAuth);
+    await setDoc(doc(db, "admins", cred.user.uid), {
+      name: $("sfName").value.trim(), email, role: "staff", createdAt: serverTimestamp()
+    });
+    alert(t("staffAdded"));
+    openAdminTab("settings");
+  });
+  document.querySelectorAll("#adminContent [data-staff-del]").forEach((b) =>
+    (b.onclick = safe(async () => {
+      if (!confirm(t("confirmGeneric"))) return;
+      await deleteDoc(doc(db, "admins", b.dataset.staffDel));
+      alert(t("staffRemoved"));
+      openAdminTab("settings");
+    })));
+}
+
+// ---------- Student portal: attendance, notices, timetable, material ----------
+async function renderStudentExtras(s) {
+  const [attSnap, batchSnap, noticeSnap] = await Promise.all([
+    getDocs(query(collection(db, "attendance"), where("authUid", "==", s.authUid))),
+    getDoc(doc(db, "batches", s.batchId)),
+    getDocs(collection(db, "notices"))
+  ]);
+  const recs = attSnap.docs.map((d) => d.data());
+  const cnt = (list, st) => list.filter((a) => a.status === st).length;
+  const pct = (list) => {
+    const p = cnt(list, "P"), a = cnt(list, "A");
+    return p + a ? Math.round((p / (p + a)) * 100) + "%" : "-";
+  };
+  const thisM = todayISO().slice(0, 7);
+  const batch = batchSnap.exists() ? batchSnap.data() : {};
+  const mats = (batch.materials || []).filter((m) => /^https?:\/\//.test(m.url || ""));
+  const notices = noticeSnap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((n) => n.audience === "all" || n.audience === s.batchId)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+    .slice(0, 20);
+
+  const attHtml = `
+    <div class="card">
+      <h3>${t("attendance")}</h3>
+      <div class="row"><span class="muted">${t("attOverall")}</span><b>${pct(recs)}</b></div>
+      <div class="row"><span class="muted">${t("attThisMonth")}</span><b>${pct(recs.filter((a) => (a.date || "").startsWith(thisM)))}</b></div>
+      <div class="row"><span class="muted">${t("attPresent")}</span><b>${cnt(recs, "P")}</b></div>
+      <div class="row"><span class="muted">${t("attAbsent")}</span><b>${cnt(recs, "A")}</b></div>
+      <div class="row"><span class="muted">${t("attLeave")}</span><b>${cnt(recs, "L")}</b></div>
+    </div>`;
+  const noticeHtml = `
+    <div class="card">
+      <h3>${t("navNotices")}</h3>
+      ${notices.map((n) => `
+        <div class="row" style="display:block">
+          <b>${esc(n.title)}</b> <span class="muted">${fmtDate(n.date)}</span>
+          <div class="pre">${esc(n.body)}</div>
+        </div>`).join("") || `<p class="muted">${t("noNotices")}</p>`}
+    </div>`;
+  const batchHtml = `
+    <div class="card">
+      <h3>${t("timetable")}</h3>
+      <div class="pre">${esc(batch.timetable || "-")}</div>
+      <h3 style="margin-top:14px">${t("materials")}</h3>
+      ${mats.map((m) => `
+        <div class="row"><span>${esc(m.title)}</span>
+        <a href="${esc(m.url)}" target="_blank" rel="noopener" style="color:#67e8f9;font-weight:700">${t("open")}</a></div>`).join("")
+        || `<p class="muted">${t("noMaterials")}</p>`}
+    </div>`;
+  $("studentView").insertAdjacentHTML("beforeend", attHtml + noticeHtml + batchHtml);
+}
+
+// ---------- Certificate verification (QR se khulta hai) ----------
+async function showVerify(code) {
+  ["loginView", "adminView", "studentView"].forEach((v) => $(v).classList.add("hidden"));
+  $("logoutBtn").classList.add("hidden");
+  $("verifyView").classList.remove("hidden");
+  const snap = await getDoc(doc(db, "certificates", code));
+  const c = snap.exists() ? snap.data() : null;
+  $("verifyCard").innerHTML = `
+    <h3>${t("verifyTitle")}</h3>
+    <form id="verifyForm">
+      <input id="vCode" value="${esc(code)}" placeholder="${t("certNo")}">
+      <button type="submit">${t("verifyCheck")}</button>
+    </form>
+    ${c && c.passed ? `
+      <div class="row"><span class="muted">${t("certNo")}</span><b>${esc(c.certNo)}</b></div>
+      <div class="row"><span class="muted">${t("name")}</span><b>${esc(c.name)}</b></div>
+      <div class="row"><span class="muted">${t("course")}</span><b>${esc(c.course)}</b></div>
+      <div class="row"><span class="muted">${t("examLabel")}</span><b>${esc(c.examTitle)}</b></div>
+      <div class="row"><span class="muted">${t("date")}</span><b>${fmtDate(c.examDate)}</b></div>
+      <div class="row"><span class="muted">${t("marksLabel")}</span><b>${c.marks} / ${c.maxMarks}</b></div>
+      <p class="okTxt">${t("verifyOk")}</p>`
+      : `<p class="badTxt">${t("verifyNo")}</p>`}
+    <button id="verifyBack" class="secondary">${t("verifyBack")}</button>`;
+  $("verifyForm").onsubmit = (e) => { e.preventDefault(); showVerify($("vCode").value.trim()); };
+  $("verifyBack").onclick = () => { location.href = location.pathname; };
+}
+
 
 // ---------- Init ----------
 document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => openAdminTab(b.dataset.tab)));
@@ -1709,6 +2376,7 @@ $("langSel").onchange = () => {
 
 applyI18n();
 loadSettings();
+if (VERIFY_CODE) showVerify(VERIFY_CODE);
 </script>
 </body>
 </html>
